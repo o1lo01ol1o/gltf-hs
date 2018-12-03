@@ -6,9 +6,9 @@
 [![Stackage Nightly](http://stackage.org/package/gltf-easytensor/badge/nightly)](http://stackage.org/nightly/package/gltf-easytensor)
 [![Build status](https://secure.travis-ci.org/o1lo01ol1o/gltf-easytensor.svg)](https://travis-ci.org/o1lo01ol1o/gltf-easytensor)
 
-Parsing and serialization support for the transfer of 3d assets as described by the (gltf specification (version 2.0))[https://github.com/KhronosGroup/glTF].
+Parsing and serialization support for the transfer of 3d assets as described by the by the Khronos Group's [gltf specification (version 2.0)](https://github.com/KhronosGroup/glTF).
 
-This package aims to support loading assets in the `gltf` format and efficient, no-copy conversions to datatypes used in the (vulkan-api)[https://github.com/achirkin/vulkan]
+This package aims to support loading assets in the `gltf` format and efficient, no-copy conversions to datatypes used in the [vulkan-api](https://github.com/achirkin/vulkan)
 
 ## Roadmap
 
