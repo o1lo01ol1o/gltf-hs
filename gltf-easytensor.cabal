@@ -28,8 +28,11 @@ library
   build-depends:       base ^>= 4.11.1.0
                        , aeson
                        , text
+                       , scientific >= 0.3
                        , bytestring >= 0.10
                        , json-autotype
+                       , unordered-containers
+                       , lens
   
                      
 
@@ -48,9 +51,11 @@ library
 executable gltf-easytensor
   hs-source-dirs:      app
   main-is:             Main.hs
+  
 
   build-depends:       base ^>= 4.11.1.0
                      , gltf-easytensor
+                     
                      
 
   ghc-options:         -Wall
@@ -71,10 +76,19 @@ executable gltf-easytensor
 test-suite gltf-easytensor-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
+
   main-is:             Spec.hs
+  other-modules:       Parsing
 
   build-depends:       base ^>= 4.11.1.0
                      , gltf-easytensor
+                     , QuickCheck   >= 2.9     && < 2.13
+                     , tasty
+                     , directory
+                     , HUnit
+                     , filepath
+                     , tasty-hunit
+
                      
 
   ghc-options:         -Wall
@@ -101,8 +115,12 @@ benchmark gltf-easytensor-benchmark
                      , gauge
                      , gltf-easytensor
                      
+                     
+                     
 
   ghc-options:         -Wall
+                       -O2
+                       -fllvm
                        -threaded
                        -rtsopts
                        -with-rtsopts=-N

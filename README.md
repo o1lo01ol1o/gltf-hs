@@ -6,4 +6,10 @@
 [![Stackage Nightly](http://stackage.org/package/gltf-easytensor/badge/nightly)](http://stackage.org/nightly/package/gltf-easytensor)
 [![Build status](https://secure.travis-ci.org/o1lo01ol1o/gltf-easytensor.svg)](https://travis-ci.org/o1lo01ol1o/gltf-easytensor)
 
-See README for more info
+Parsing and serialization support for the transfer of 3d assets as described by the `gltf` specification (version 2.0).
+
+## Roadmap
+
+[x] FromJSON instances (supports loading `.gltf` files)
+[] uri ingestion to `PrimBytes` arrays for efficient interop with the `vulkan-api` library
+[] ToJSON instances for all data structures.

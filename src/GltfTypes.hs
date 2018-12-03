@@ -4,21 +4,20 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE TypeOperators       #-}
 {-# LANGUAGE DeriveGeneric       #-}
-
+{-# LANGUAGE LambdaCase       #-}
 module GltfTypes where
 
 import           System.Exit                    ( exitFailure
-                                                , exitSuccess
                                                 )
 import           System.IO                      ( stderr
                                                 , hPutStrLn
                                                 )
+import Data.Aeson.Types                          ( Parser )
 import qualified Data.ByteString.Lazy.Char8    as BSL
-import           System.Environment             ( getArgs )
-import           Control.Monad                  ( forM_
-                                                , mzero
+import           Control.Monad                  ( mzero
                                                 , join
                                                 )
+import Data.Scientific (isInteger, toBoundedInteger)
 import           Control.Applicative
 import           Data.Aeson.AutoType.Alternative
 import           Data.Aeson                     ( decode
@@ -31,8 +30,9 @@ import           Data.Aeson                     ( decode
                                                 , (.=)
                                                 , object
                                                 )
-import           Data.Monoid
+import Data.Int (Int64)
 import           Data.Text                      ( Text )
+import Control.Lens.TH (makeLenses, makePrisms)
 import           GHC.Generics
 
 -- | Workaround for https://github.com/bos/aeson/issues/287.
@@ -40,14 +40,14 @@ o .:?? val = fmap join (o .:? val)
 
 
 data Attributes = Attributes {
-    attributesCOLOR0 :: (Maybe (Double:|:[(Maybe Value)])),
-    attributesJOINTS0 :: (Maybe (Double:|:[(Maybe Value)])),
-    attributesNORMAL :: (Maybe (Double:|:[(Maybe Value)])),
-    attributesWEIGHTS0 :: (Maybe (Double:|:[(Maybe Value)])),
-    attributesTEXCOORD1 :: (Maybe (Double:|:[(Maybe Value)])),
-    attributesTEXCOORD0 :: (Maybe (Double:|:[(Maybe Value)])),
-    attributesTANGENT :: (Maybe (Double:|:[(Maybe Value)])),
-    attributesPOSITION :: Double
+    _attributesCOLOR0 ::  Maybe Int,
+    _attributesJOINTS0 :: Maybe Int,
+    _attributesNORMAL :: Maybe Int,
+    _attributesWEIGHTS0 :: Maybe Int,
+    _attributesTEXCOORD1 :: Maybe Int,
+    _attributesTEXCOORD0 :: Maybe Int,
+    _attributesTANGENT :: Maybe Int,
+    _attributesPOSITION :: Maybe Int
   } deriving (Show,Eq,Generic)
 
 
@@ -65,35 +65,35 @@ instance FromJSON Attributes where
 instance ToJSON Attributes where
   toJSON (Attributes {..}) =
     object
-      [ "COLOR_0" .= attributesCOLOR0
-      , "JOINTS_0" .= attributesJOINTS0
-      , "NORMAL" .= attributesNORMAL
-      , "WEIGHTS_0" .= attributesWEIGHTS0
-      , "TEXCOORD_1" .= attributesTEXCOORD1
-      , "TEXCOORD_0" .= attributesTEXCOORD0
-      , "TANGENT" .= attributesTANGENT
-      , "POSITION" .= attributesPOSITION
+      [ "COLOR_0" .= _attributesCOLOR0
+      , "JOINTS_0" .= _attributesJOINTS0
+      , "NORMAL" .= _attributesNORMAL
+      , "WEIGHTS_0" .= _attributesWEIGHTS0
+      , "TEXCOORD_1" .= _attributesTEXCOORD1
+      , "TEXCOORD_0" .= _attributesTEXCOORD0
+      , "TANGENT" .= _attributesTANGENT
+      , "POSITION" .= _attributesPOSITION
       ]
   toEncoding (Attributes {..}) =
     pairs
-      ("COLOR_0" .= attributesCOLOR0 <> "JOINTS_0" .= attributesJOINTS0 <>
+      ("COLOR_0" .= _attributesCOLOR0 <> "JOINTS_0" .= _attributesJOINTS0 <>
        "NORMAL" .=
-       attributesNORMAL <>
+       _attributesNORMAL <>
        "WEIGHTS_0" .=
-       attributesWEIGHTS0 <>
+       _attributesWEIGHTS0 <>
        "TEXCOORD_1" .=
-       attributesTEXCOORD1 <>
+       _attributesTEXCOORD1 <>
        "TEXCOORD_0" .=
-       attributesTEXCOORD0 <>
+       _attributesTEXCOORD0 <>
        "TANGENT" .=
-       attributesTANGENT <>
+       _attributesTANGENT <>
        "POSITION" .=
-       attributesPOSITION)
+       _attributesPOSITION)
 
 
 data KHRDracoMeshCompression = KHRDracoMeshCompression {
-    kHRDracoMeshCompressionBufferView :: Double,
-    kHRDracoMeshCompressionAttributes :: Attributes
+    _kHRDracoMeshCompressionBufferView :: Int,
+    _kHRDracoMeshCompressionAttributes :: Attributes
   } deriving (Show,Eq,Generic)
 
 
@@ -103,31 +103,31 @@ instance FromJSON KHRDracoMeshCompression where
 
 
 instance ToJSON KHRDracoMeshCompression where
-  toJSON     (KHRDracoMeshCompression {..}) = object ["bufferView" .= kHRDracoMeshCompressionBufferView, "attributes" .= kHRDracoMeshCompressionAttributes]
-  toEncoding (KHRDracoMeshCompression {..}) = pairs  ("bufferView" .= kHRDracoMeshCompressionBufferView<>"attributes" .= kHRDracoMeshCompressionAttributes)
+  toJSON     (KHRDracoMeshCompression {..}) = object ["bufferView" .= _kHRDracoMeshCompressionBufferView, "attributes" .= _kHRDracoMeshCompressionAttributes]
+  toEncoding (KHRDracoMeshCompression {..}) = pairs  ("bufferView" .= _kHRDracoMeshCompressionBufferView<>"attributes" .= _kHRDracoMeshCompressionAttributes)
 
 
-data DiffuseTexture = DiffuseTexture {
-    diffuseTextureIndex :: Double
+data TextureInfo = TextureInfo {
+    _textureInfoIndex :: Double
   } deriving (Show,Eq,Generic)
 
 
-instance FromJSON DiffuseTexture where
-  parseJSON (Object v) = DiffuseTexture <$> v .:   "index"
+instance FromJSON TextureInfo where
+  parseJSON (Object v) = TextureInfo <$> v .:   "index"
   parseJSON _          = mzero
 
 
-instance ToJSON DiffuseTexture where
-  toJSON     (DiffuseTexture {..}) = object ["index" .= diffuseTextureIndex]
-  toEncoding (DiffuseTexture {..}) = pairs  ("index" .= diffuseTextureIndex)
+instance ToJSON TextureInfo where
+  toJSON     (TextureInfo {..}) = object ["index" .= _textureInfoIndex]
+  toEncoding (TextureInfo {..}) = pairs  ("index" .= _textureInfoIndex)
 
 
 data KHRMaterialsPbrSpecularGlossiness = KHRMaterialsPbrSpecularGlossiness {
-    kHRMaterialsPbrSpecularGlossinessGlossinessFactor :: (Maybe (Double:|:[(Maybe Value)])),
-    kHRMaterialsPbrSpecularGlossinessSpecularFactor :: (Maybe ([Double])),
-    kHRMaterialsPbrSpecularGlossinessDiffuseFactor :: (Maybe ([Double])),
-    kHRMaterialsPbrSpecularGlossinessSpecularGlossinessTexture :: (Maybe (DiffuseTexture:|:[(Maybe Value)])),
-    kHRMaterialsPbrSpecularGlossinessDiffuseTexture :: (Maybe (DiffuseTexture:|:[(Maybe Value)]))
+    _kHRMaterialsPbrSpecularGlossinessGlossinessFactor :: Maybe Double,
+    _kHRMaterialsPbrSpecularGlossinessSpecularFactor :: (Maybe ([Double])), -- number[3]
+    _kHRMaterialsPbrSpecularGlossinessDiffuseFactor :: (Maybe ([Double])), -- number[4]
+    _kHRMaterialsPbrSpecularGlossinessSpecularGlossinessTexture :: Maybe TextureInfo,
+    _kHRMaterialsPbrSpecularGlossinessTextureInfo :: (Maybe (TextureInfo))
   } deriving (Show,Eq,Generic)
 
 
@@ -144,30 +144,31 @@ instance FromJSON KHRMaterialsPbrSpecularGlossiness where
 instance ToJSON KHRMaterialsPbrSpecularGlossiness where
   toJSON (KHRMaterialsPbrSpecularGlossiness {..}) =
     object
-      [ "glossinessFactor" .= kHRMaterialsPbrSpecularGlossinessGlossinessFactor
-      , "specularFactor" .= kHRMaterialsPbrSpecularGlossinessSpecularFactor
-      , "diffuseFactor" .= kHRMaterialsPbrSpecularGlossinessDiffuseFactor
+      [ "glossinessFactor" .= _kHRMaterialsPbrSpecularGlossinessGlossinessFactor
+      , "specularFactor" .= _kHRMaterialsPbrSpecularGlossinessSpecularFactor
+      , "diffuseFactor" .= _kHRMaterialsPbrSpecularGlossinessDiffuseFactor
       , "specularGlossinessTexture" .=
-        kHRMaterialsPbrSpecularGlossinessSpecularGlossinessTexture
-      , "diffuseTexture" .= kHRMaterialsPbrSpecularGlossinessDiffuseTexture
+        _kHRMaterialsPbrSpecularGlossinessSpecularGlossinessTexture
+      , "diffuseTexture" .= _kHRMaterialsPbrSpecularGlossinessTextureInfo
       ]
   toEncoding (KHRMaterialsPbrSpecularGlossiness {..}) =
     pairs
-      ("glossinessFactor" .= kHRMaterialsPbrSpecularGlossinessGlossinessFactor <>
+      ("glossinessFactor" .= _kHRMaterialsPbrSpecularGlossinessGlossinessFactor <>
        "specularFactor" .=
-       kHRMaterialsPbrSpecularGlossinessSpecularFactor <>
+       _kHRMaterialsPbrSpecularGlossinessSpecularFactor <>
        "diffuseFactor" .=
-       kHRMaterialsPbrSpecularGlossinessDiffuseFactor <>
+       _kHRMaterialsPbrSpecularGlossinessDiffuseFactor <>
        "specularGlossinessTexture" .=
-       kHRMaterialsPbrSpecularGlossinessSpecularGlossinessTexture <>
+       _kHRMaterialsPbrSpecularGlossinessSpecularGlossinessTexture <>
        "diffuseTexture" .=
-       kHRMaterialsPbrSpecularGlossinessDiffuseTexture)
+       _kHRMaterialsPbrSpecularGlossinessTextureInfo)
 
 
 data KHRTextureTransform = KHRTextureTransform {
-    kHRTextureTransformRotation :: (Maybe (Double:|:[(Maybe Value)])),
-    kHRTextureTransformOffset :: (Maybe ([Double])),
-    kHRTextureTransformScale :: (Maybe ([Double]))
+    _kHRTextureTransformRotation :: (Maybe Double),
+    _kHRTextureTransformOffset :: (Maybe ([Double])), -- array[2]
+    _kHRTextureTransformScale :: (Maybe ([Double])) -- array[2]
+    -- FIXME: missing texCoord
   } deriving (Show,Eq,Generic)
 
 
@@ -179,22 +180,22 @@ instance FromJSON KHRTextureTransform where
 instance ToJSON KHRTextureTransform where
   toJSON (KHRTextureTransform {..}) =
     object
-      [ "rotation" .= kHRTextureTransformRotation
-      , "offset" .= kHRTextureTransformOffset
-      , "scale" .= kHRTextureTransformScale
+      [ "rotation" .= _kHRTextureTransformRotation
+      , "offset" .= _kHRTextureTransformOffset
+      , "scale" .= _kHRTextureTransformScale
       ]
   toEncoding (KHRTextureTransform {..}) =
     pairs
-      ("rotation" .= kHRTextureTransformRotation <> "offset" .=
-       kHRTextureTransformOffset <>
+      ("rotation" .= _kHRTextureTransformRotation <> "offset" .=
+       _kHRTextureTransformOffset <>
        "scale" .=
-       kHRTextureTransformScale)
+       _kHRTextureTransformScale)
 
 
 data ImagesElt = ImagesElt {
-    imagesEltUri :: Text,
-    imagesEltMimeType :: (Maybe (Text:|:[(Maybe Value)])),
-    imagesEltName :: (Maybe (Text:|:[(Maybe Value)]))
+    _imagesEltUri :: Text,
+    _imagesEltMimeType :: Maybe Text,
+    _imagesEltName :: Maybe Text
   } deriving (Show,Eq,Generic)
 
 
@@ -206,20 +207,20 @@ instance FromJSON ImagesElt where
 instance ToJSON ImagesElt where
   toJSON (ImagesElt {..}) =
     object
-      [ "uri" .= imagesEltUri
-      , "mimeType" .= imagesEltMimeType
-      , "name" .= imagesEltName
+      [ "uri" .= _imagesEltUri
+      , "mimeType" .= _imagesEltMimeType
+      , "name" .= _imagesEltName
       ]
   toEncoding (ImagesElt {..}) =
     pairs
-      ("uri" .= imagesEltUri <> "mimeType" .= imagesEltMimeType <> "name" .=
-       imagesEltName)
+      ("uri" .= _imagesEltUri <> "mimeType" .= _imagesEltMimeType <> "name" .=
+       _imagesEltName)
 
 
 data TexturesElt = TexturesElt {
-    texturesEltSampler :: (Maybe (Double:|:[(Maybe Value)])),
-    texturesEltName :: (Maybe (Text:|:[(Maybe Value)])),
-    texturesEltSource :: Double
+    _texturesEltSampler :: (Maybe (Double:|:[(Maybe Value)])),
+    _texturesEltName :: (Maybe (Text:|:[(Maybe Value)])),
+    _texturesEltSource :: Double
   } deriving (Show,Eq,Generic)
 
 
@@ -231,26 +232,117 @@ instance FromJSON TexturesElt where
 instance ToJSON TexturesElt where
   toJSON (TexturesElt {..}) =
     object
-      [ "sampler" .= texturesEltSampler
-      , "name" .= texturesEltName
-      , "source" .= texturesEltSource
+      [ "sampler" .= _texturesEltSampler
+      , "name" .= _texturesEltName
+      , "source" .= _texturesEltSource
       ]
   toEncoding (TexturesElt {..}) =
     pairs
-      ("sampler" .= texturesEltSampler <> "name" .= texturesEltName <> "source" .=
-       texturesEltSource)
+      ("sampler" .= _texturesEltSampler <> "name" .= _texturesEltName <> "source" .=
+       _texturesEltSource)
+
+data Interpolation
+  = Interpolation_STEP
+  | Interpolation_LINEAR
+  | Interpolation_CUBICSPLINE
+  | Interpolation_Unknown Text
+  deriving (Show, Read, Ord, Eq, Generic)
+
+instance FromJSON Interpolation where
+  parseJSON (String t) = fromString t
+    where
+      fromString :: Text -> Parser Interpolation
+      fromString "STEP" = pure Interpolation_STEP
+      fromString "LINEAR"  = pure Interpolation_LINEAR
+      fromString "CUBICSPLINE"  = pure Interpolation_CUBICSPLINE
+      fromString o     = pure $ Interpolation_Unknown o
+-- TODO: ToJSON
+
+instance ToJSON Interpolation where
 
 
-data SamplersElt = SamplersElt {
-    samplersEltWrapS :: (Maybe (Double:|:[(Maybe Value)])),
-    samplersEltInterpolation :: (Maybe (Text:|:[(Maybe Value)])),
-    samplersEltMinFilter :: (Maybe (Double:|:[(Maybe Value)])),
-    samplersEltWrapT :: (Maybe (Double:|:[(Maybe Value)])),
-    samplersEltMagFilter :: (Maybe (Double:|:[(Maybe Value)])),
-    samplersEltInput :: (Maybe (Double:|:[(Maybe Value)])),
-    samplersEltName :: (Maybe (Text:|:[(Maybe Value)])),
-    samplersEltOutput :: (Maybe (Double:|:[(Maybe Value)]))
-  } deriving (Show,Eq,Generic)
+data MinFilter
+  = MinFilter_NEAREST
+  | MinFilter_LINEAR
+  | MinFilter_NEAREST_MIPMAP_NEAREST
+  | MinFilter_LINEAR_MIPMAP_NEAREST
+  | MinFilter_NEAREST_MIPMAP_LINEAR
+  | MinFilter_LINEAR_MIPMAP_LINEAR
+  deriving (Show, Read, Ord, Eq, Generic)
+
+minFilterToEnum =
+  \case
+    MinFilter_NEAREST -> 9728
+    MinFilter_LINEAR -> 9729
+    MinFilter_NEAREST_MIPMAP_NEAREST -> 9984
+    MinFilter_LINEAR_MIPMAP_NEAREST -> 9985
+    MinFilter_NEAREST_MIPMAP_LINEAR -> 9986
+    MinFilter_LINEAR_MIPMAP_LINEAR -> 9987
+
+enumToMinFilter =
+  \case
+    9728 -> MinFilter_NEAREST
+    9729 -> MinFilter_LINEAR
+    9984 -> MinFilter_NEAREST_MIPMAP_NEAREST
+    9985 -> MinFilter_LINEAR_MIPMAP_NEAREST
+    9986 -> MinFilter_NEAREST_MIPMAP_LINEAR
+    9987 -> MinFilter_LINEAR_MIPMAP_LINEAR
+
+data MagFilter
+  = MagFilter_NEAREST
+  | MagFilter_LINEAR
+  deriving (Show, Read, Ord, Eq, Generic)
+
+enumToMagFilter = \case
+  9728 -> MagFilter_NEAREST
+  9729 -> MagFilter_LINEAR
+
+magFilterToEnum = \case
+  MagFilter_NEAREST -> 9728
+  MagFilter_LINEAR -> 9729
+
+instance Enum MagFilter where
+  fromEnum = magFilterToEnum
+  toEnum = enumToMagFilter
+
+instance Enum MinFilter where
+  fromEnum = minFilterToEnum
+  toEnum = enumToMinFilter
+  
+instance FromJSON MagFilter where
+  parseJSON (Number n) = toInt n
+    where
+      toInt n =
+        if isInteger n
+          then case toBoundedInteger n of
+                 Just s -> pure $ toEnum s
+                 Nothing -> empty
+          else empty
+  parseJSON _ = empty
+
+instance FromJSON MinFilter where
+  parseJSON (Number n) = toInt n
+    where
+      toInt n =
+        if isInteger n
+          then case toBoundedInteger n of
+                 Just s -> pure $ toEnum s
+                 Nothing -> empty
+          else empty
+  parseJSON _ = empty
+
+-- FIXME: ToJSON instances
+
+data SamplersElt = SamplersElt
+  { _samplersEltWrapS :: Maybe Int
+  , _samplersEltInterpolation :: Maybe Interpolation
+  , _samplersEltMinFilter :: Maybe MinFilter
+  , _samplersEltWrapT :: Maybe Int
+  , _samplersEltMagFilter :: Maybe MagFilter
+  , _samplersEltInput :: Maybe Int
+  , _samplersEltName :: Maybe Text
+  , _samplersEltOutput :: Maybe Int
+  } deriving (Show, Eq, Generic)
 
 
 instance FromJSON SamplersElt where
@@ -265,40 +357,40 @@ instance FromJSON SamplersElt where
   parseJSON _ = mzero
 
 
-instance ToJSON SamplersElt where
-  toJSON (SamplersElt {..}) =
-    object
-      [ "wrapS" .= samplersEltWrapS
-      , "interpolation" .= samplersEltInterpolation
-      , "minFilter" .= samplersEltMinFilter
-      , "wrapT" .= samplersEltWrapT
-      , "magFilter" .= samplersEltMagFilter
-      , "input" .= samplersEltInput
-      , "name" .= samplersEltName
-      , "output" .= samplersEltOutput
-      ]
-  toEncoding (SamplersElt {..}) =
-    pairs
-      ("wrapS" .= samplersEltWrapS <> "interpolation" .=
-       samplersEltInterpolation <>
-       "minFilter" .=
-       samplersEltMinFilter <>
-       "wrapT" .=
-       samplersEltWrapT <>
-       "magFilter" .=
-       samplersEltMagFilter <>
-       "input" .=
-       samplersEltInput <>
-       "name" .=
-       samplersEltName <>
-       "output" .=
-       samplersEltOutput)
+-- instance ToJSON SamplersElt where
+--   toJSON (SamplersElt {..}) =
+--     object
+--       [ "wrapS" .= _samplersEltWrapS
+--       , "interpolation" .= _samplersEltInterpolation
+--       , "minFilter" .= _samplersEltMinFilter
+--       , "wrapT" .= _samplersEltWrapT
+--       , "magFilter" .= _samplersEltMagFilter
+--       , "input" .= _samplersEltInput
+--       , "name" .= _samplersEltName
+--       , "output" .= _samplersEltOutput
+--       ]
+--   toEncoding (SamplersElt {..}) =
+--     pairs
+--       ("wrapS" .= _samplersEltWrapS <> "interpolation" .=
+--        _samplersEltInterpolation <>
+--        "minFilter" .=
+--        _samplersEltMinFilter <>
+--        "wrapT" .=
+--        _samplersEltWrapT <>
+--        "magFilter" .=
+--        _samplersEltMagFilter <>
+--        "input" .=
+--        _samplersEltInput <>
+--        "name" .=
+--        _samplersEltName <>
+--        "output" .=
+--        _samplersEltOutput)
 
 
 data Extensions = Extensions
-  { extensionsKHRTextureTransform :: (Maybe (KHRTextureTransform :|: [(Maybe Value)]))
-  , extensionsKHRDracoMeshCompression :: (Maybe (KHRDracoMeshCompression :|: [(Maybe Value)]))
-  , extensionsKHRMaterialsPbrSpecularGlossiness :: (Maybe (KHRMaterialsPbrSpecularGlossiness :|: [(Maybe Value)]))
+  { _extensionsKHRTextureTransform :: Maybe KHRTextureTransform
+  , _extensionsKHRDracoMeshCompression ::Maybe KHRDracoMeshCompression
+  , _extensionsKHRMaterialsPbrSpecularGlossiness :: Maybe KHRMaterialsPbrSpecularGlossiness
   } deriving (Show, Eq, Generic)
 
 
@@ -313,24 +405,24 @@ instance FromJSON Extensions where
 instance ToJSON Extensions where
   toJSON (Extensions {..}) =
     object
-      [ "KHR_texture_transform" .= extensionsKHRTextureTransform
-      , "KHR_draco_mesh_compression" .= extensionsKHRDracoMeshCompression
+      [ "KHR_texture_transform" .= _extensionsKHRTextureTransform
+      , "KHR_draco_mesh_compression" .= _extensionsKHRDracoMeshCompression
       , "KHR_materials_pbrSpecularGlossiness" .=
-        extensionsKHRMaterialsPbrSpecularGlossiness
+        _extensionsKHRMaterialsPbrSpecularGlossiness
       ]
   toEncoding (Extensions {..}) =
     pairs
-      ("KHR_texture_transform" .= extensionsKHRTextureTransform <>
+      ("KHR_texture_transform" .= _extensionsKHRTextureTransform <>
        "KHR_draco_mesh_compression" .=
-       extensionsKHRDracoMeshCompression <>
+       _extensionsKHRDracoMeshCompression <>
        "KHR_materials_pbrSpecularGlossiness" .=
-       extensionsKHRMaterialsPbrSpecularGlossiness)
+       _extensionsKHRMaterialsPbrSpecularGlossiness)
 
 
 data TargetsElt = TargetsElt
-  { targetsEltNORMAL :: (Maybe (Double :|: [(Maybe Value)]))
-  , targetsEltTANGENT :: (Maybe (Double :|: [(Maybe Value)]))
-  , targetsEltPOSITION :: Double
+  { _targetsEltNORMAL :: Maybe Int
+  , _targetsEltTANGENT :: Maybe Int
+  , _targetsEltPOSITION :: Int
   } deriving (Show, Eq, Generic)
 
 
@@ -341,52 +433,78 @@ instance FromJSON TargetsElt where
 
 
 instance ToJSON TargetsElt where
-  toJSON     (TargetsElt {..}) = object ["NORMAL" .= targetsEltNORMAL, "TANGENT" .= targetsEltTANGENT, "POSITION" .= targetsEltPOSITION]
-  toEncoding (TargetsElt {..}) = pairs  ("NORMAL" .= targetsEltNORMAL<>"TANGENT" .= targetsEltTANGENT<>"POSITION" .= targetsEltPOSITION)
+  toJSON     (TargetsElt {..}) = object ["NORMAL" .= _targetsEltNORMAL, "TANGENT" .= _targetsEltTANGENT, "POSITION" .= _targetsEltPOSITION]
+  toEncoding (TargetsElt {..}) = pairs  ("NORMAL" .= _targetsEltNORMAL<>"TANGENT" .= _targetsEltTANGENT<>"POSITION" .= _targetsEltPOSITION)
 
+
+data PrimitiveMode =
+   PrimitiveMode_POINTS
+  | PrimitiveMode_LINES
+  | PrimitiveMode_LINE_LOOP
+  | PrimitiveMode_LINE_STRIP
+  | PrimitiveMode_TRIANGLES
+  | PrimitiveMode_TRIANGLE_STRIP
+  | PrimitiveMode_TRIANGLE_FAN
+  deriving (Show, Eq, Generic, Enum, Bounded)
+
+instance FromJSON PrimitiveMode where
+  parseJSON (Number n) = toInt n
+    where
+      toInt n =
+        if isInteger n
+          then case toBoundedInteger n of
+                 Just s -> pure $ toEnum s
+                 Nothing -> empty
+          else empty
+  parseJSON _ = empty
 
 data PrimitivesElt = PrimitivesElt {
-    primitivesEltExtensions :: (Maybe (Extensions:|:[(Maybe Value)])),
-    primitivesEltMode :: (Maybe (Double:|:[(Maybe Value)])),
-    primitivesEltMaterial :: (Maybe (Double:|:[(Maybe Value)])),
-    primitivesEltIndices :: (Maybe (Double:|:[(Maybe Value)])),
-    primitivesEltAttributes :: Attributes,
-    primitivesEltTargets :: (Maybe ([TargetsElt]))
+    _primitivesEltExtensions :: Maybe Extensions,
+    _primitivesEltMode :: Maybe PrimitiveMode,
+    _primitivesEltMaterial :: Maybe Int,
+    _primitivesEltIndices :: Maybe Int64,
+    _primitivesEltAttributes :: Attributes,
+    _primitivesEltTargets :: Maybe [TargetsElt]
   } deriving (Show,Eq,Generic)
 
 
 instance FromJSON PrimitivesElt where
-  parseJSON (Object v) = PrimitivesElt <$> v .:?? "extensions" <*> v .:?? "mode" <*> v .:?? "material" <*> v .:?? "indices" <*> v .:   "attributes" <*> v .:?? "targets"
-  parseJSON _          = mzero
+  parseJSON (Object v) =
+    PrimitivesElt <$> v .:?? "extensions" <*> v .:?? "mode" <*>
+    v .:?? "material" <*>
+    v .:?? "_indices" <*>
+    v .: "attributes" <*>
+    v .:?? "targets"
+  parseJSON _ = mzero
 
 
-instance ToJSON PrimitivesElt where
-  toJSON (PrimitivesElt {..}) =
-    object
-      [ "extensions" .= primitivesEltExtensions
-      , "mode" .= primitivesEltMode
-      , "material" .= primitivesEltMaterial
-      , "indices" .= primitivesEltIndices
-      , "attributes" .= primitivesEltAttributes
-      , "targets" .= primitivesEltTargets
-      ]
-  toEncoding (PrimitivesElt {..}) =
-    pairs
-      ("extensions" .= primitivesEltExtensions <> "mode" .= primitivesEltMode <>
-       "material" .=
-       primitivesEltMaterial <>
-       "indices" .=
-       primitivesEltIndices <>
-       "attributes" .=
-       primitivesEltAttributes <>
-       "targets" .=
-       primitivesEltTargets)
+-- instance ToJSON PrimitivesElt where
+--   toJSON (PrimitivesElt {..}) =
+--     object
+--       [ "extensions" .= _primitivesEltExtensions
+--       , "mode" .= _primitivesEltMode
+--       , "material" .= _primitivesEltMaterial
+--       , "_indices" .= _primitivesEltIndices
+--       , "attributes" .= _primitivesEltAttributes
+--       , "targets" .= _primitivesEltTargets
+--       ]
+--   toEncoding (PrimitivesElt {..}) =
+    -- pairs
+    --   ("extensions" .= _primitivesEltExtensions <> "mode" .= _primitivesEltMode <>
+    --    "material" .=
+    --    _primitivesEltMaterial <>
+    --    "_indices" .=
+    --    _primitivesEltIndices <>
+    --    "attributes" .=
+    --    _primitivesEltAttributes <>
+    --    "targets" .=
+    --    _primitivesEltTargets)
 
 
 data MeshesElt = MeshesElt {
-    meshesEltName :: (Maybe (Text:|:[(Maybe Value)])),
-    meshesEltPrimitives :: [PrimitivesElt],
-    meshesEltWeights :: (Maybe ([Double]))
+    _meshesEltName :: Maybe Text,
+    _meshesEltPrimitives :: [PrimitivesElt],
+    _meshesEltWeights :: Maybe [Double]
   } deriving (Show,Eq,Generic)
 
 
@@ -395,69 +513,75 @@ instance FromJSON MeshesElt where
   parseJSON _          = mzero
 
 
-instance ToJSON MeshesElt where
-  toJSON (MeshesElt {..}) =
-    object
-      [ "name" .= meshesEltName
-      , "primitives" .= meshesEltPrimitives
-      , "weights" .= meshesEltWeights
-      ]
-  toEncoding (MeshesElt {..}) =
-    pairs
-      ("name" .= meshesEltName <> "primitives" .= meshesEltPrimitives <>
-       "weights" .=
-       meshesEltWeights)
+-- instance ToJSON MeshesElt where
+--   toJSON (MeshesElt {..}) =
+--     object
+--       [ "name" .= _meshesEltName
+--       , "primitives" .= _meshesEltPrimitives
+--       , "weights" .= _meshesEltWeights
+--       ]
+--   toEncoding (MeshesElt {..}) =
+--     pairs
+--       ("name" .= _meshesEltName <> "primitives" .= _meshesEltPrimitives <>
+--        "weights" .=
+--        _meshesEltWeights)
 
 
 data EmissiveTexture = EmissiveTexture {
-    emissiveTextureTexCoord :: (Maybe (Double:|:[(Maybe Value)])),
-    emissiveTextureIndex :: Double
+    _emissiveTextureTexCoord :: Maybe Int,
+    _emissiveTextureIndex :: Int
   } deriving (Show,Eq,Generic)
 
 
 instance FromJSON EmissiveTexture where
-  parseJSON (Object v) = EmissiveTexture <$> v .:?? "texCoord" <*> v .:   "index"
-  parseJSON _          = mzero
+  parseJSON (Object v) = EmissiveTexture <$> v .:?? "texCoord" <*> v .: "index"
+  parseJSON _ = mzero
 
 
 instance ToJSON EmissiveTexture where
-  toJSON     (EmissiveTexture {..}) = object ["texCoord" .= emissiveTextureTexCoord, "index" .= emissiveTextureIndex]
-  toEncoding (EmissiveTexture {..}) = pairs  ("texCoord" .= emissiveTextureTexCoord<>"index" .= emissiveTextureIndex)
+  toJSON (EmissiveTexture {..}) =
+    object
+      ["texCoord" .= _emissiveTextureTexCoord, "index" .= _emissiveTextureIndex]
+  toEncoding (EmissiveTexture {..}) =
+    pairs
+      ("texCoord" .= _emissiveTextureTexCoord <> "index" .= _emissiveTextureIndex)
 
 
 data BaseColorTexture = BaseColorTexture {
-    baseColorTextureExtensions :: (Maybe (Extensions:|:[(Maybe Value)])),
-    baseColorTextureTexCoord :: (Maybe (Double:|:[(Maybe Value)])),
-    baseColorTextureIndex :: Double
+    _baseColorTextureExtensions :: Maybe Extensions,
+    _baseColorTextureTexCoord :: Maybe Int,
+    _baseColorTextureIndex :: Int
   } deriving (Show,Eq,Generic)
 
 
 instance FromJSON BaseColorTexture where
-  parseJSON (Object v) = BaseColorTexture <$> v .:?? "extensions" <*> v .:?? "texCoord" <*> v .:   "index"
-  parseJSON _          = mzero
+  parseJSON (Object v) =
+    BaseColorTexture <$> v .:?? "extensions" <*> v .:?? "texCoord" <*>
+    v .: "index"
+  parseJSON _ = mzero
 
 
 instance ToJSON BaseColorTexture where
   toJSON (BaseColorTexture {..}) =
     object
-      [ "extensions" .= baseColorTextureExtensions
-      , "texCoord" .= baseColorTextureTexCoord
-      , "index" .= baseColorTextureIndex
+      [ "extensions" .= _baseColorTextureExtensions
+      , "texCoord" .= _baseColorTextureTexCoord
+      , "index" .= _baseColorTextureIndex
       ]
   toEncoding (BaseColorTexture {..}) =
     pairs
-      ("extensions" .= baseColorTextureExtensions <> "texCoord" .=
-       baseColorTextureTexCoord <>
+      ("extensions" .= _baseColorTextureExtensions <> "texCoord" .=
+       _baseColorTextureTexCoord <>
        "index" .=
-       baseColorTextureIndex)
+       _baseColorTextureIndex)
 
 
 data PbrMetallicRoughness = PbrMetallicRoughness
-  { pbrMetallicRoughnessMetallicFactor :: (Maybe (Double :|: [(Maybe Value)]))
-  , pbrMetallicRoughnessMetallicRoughnessTexture :: (Maybe (DiffuseTexture :|: [(Maybe Value)]))
-  , pbrMetallicRoughnessBaseColorTexture :: (Maybe (BaseColorTexture :|: [(Maybe Value)]))
-  , pbrMetallicRoughnessBaseColorFactor :: (Maybe ([Double]))
-  , pbrMetallicRoughnessRoughnessFactor :: (Maybe (Double :|: [(Maybe Value)]))
+  { _pbrMetallicRoughnessMetallicFactor :: Maybe Double
+  , _pbrMetallicRoughnessMetallicRoughnessTexture :: Maybe TextureInfo
+  , _pbrMetallicRoughnessBaseColorTexture :: Maybe BaseColorTexture
+  , _pbrMetallicRoughnessBaseColorFactor :: (Maybe ([Double])) -- ^ array[4]
+  , _pbrMetallicRoughnessRoughnessFactor :: Maybe Double
   } deriving (Show, Eq, Generic)
 
 
@@ -474,29 +598,29 @@ instance FromJSON PbrMetallicRoughness where
 instance ToJSON PbrMetallicRoughness where
   toJSON (PbrMetallicRoughness {..}) =
     object
-      [ "metallicFactor" .= pbrMetallicRoughnessMetallicFactor
+      [ "metallicFactor" .= _pbrMetallicRoughnessMetallicFactor
       , "metallicRoughnessTexture" .=
-        pbrMetallicRoughnessMetallicRoughnessTexture
-      , "baseColorTexture" .= pbrMetallicRoughnessBaseColorTexture
-      , "baseColorFactor" .= pbrMetallicRoughnessBaseColorFactor
-      , "roughnessFactor" .= pbrMetallicRoughnessRoughnessFactor
+        _pbrMetallicRoughnessMetallicRoughnessTexture
+      , "baseColorTexture" .= _pbrMetallicRoughnessBaseColorTexture
+      , "baseColorFactor" .= _pbrMetallicRoughnessBaseColorFactor
+      , "roughnessFactor" .= _pbrMetallicRoughnessRoughnessFactor
       ]
   toEncoding (PbrMetallicRoughness {..}) =
     pairs
-      ("metallicFactor" .= pbrMetallicRoughnessMetallicFactor <>
+      ("metallicFactor" .= _pbrMetallicRoughnessMetallicFactor <>
        "metallicRoughnessTexture" .=
-       pbrMetallicRoughnessMetallicRoughnessTexture <>
+       _pbrMetallicRoughnessMetallicRoughnessTexture <>
        "baseColorTexture" .=
-       pbrMetallicRoughnessBaseColorTexture <>
+       _pbrMetallicRoughnessBaseColorTexture <>
        "baseColorFactor" .=
-       pbrMetallicRoughnessBaseColorFactor <>
+       _pbrMetallicRoughnessBaseColorFactor <>
        "roughnessFactor" .=
-       pbrMetallicRoughnessRoughnessFactor)
+       _pbrMetallicRoughnessRoughnessFactor)
 
 
 data NormalTexture = NormalTexture {
-    normalTextureScale :: (Maybe (Double:|:[(Maybe Value)])),
-    normalTextureIndex :: Double
+    _normalTextureScale :: Maybe Double,
+    _normalTextureIndex :: Int
   } deriving (Show,Eq,Generic)
 
 
@@ -506,22 +630,22 @@ instance FromJSON NormalTexture where
 
 
 instance ToJSON NormalTexture where
-  toJSON     (NormalTexture {..}) = object ["scale" .= normalTextureScale, "index" .= normalTextureIndex]
-  toEncoding (NormalTexture {..}) = pairs  ("scale" .= normalTextureScale<>"index" .= normalTextureIndex)
+  toJSON     (NormalTexture {..}) = object ["scale" .= _normalTextureScale, "index" .= _normalTextureIndex]
+  toEncoding (NormalTexture {..}) = pairs  ("scale" .= _normalTextureScale<>"index" .= _normalTextureIndex)
 
 
-data MaterialsElt = MaterialsElt {
-    materialsEltEmissiveTexture :: (Maybe (EmissiveTexture:|:[(Maybe Value)])),
-    materialsEltOcclusionTexture :: (Maybe (DiffuseTexture:|:[(Maybe Value)])),
-    materialsEltExtensions :: (Maybe (Extensions:|:[(Maybe Value)])),
-    materialsEltDoubleSided :: (Maybe (Bool:|:[(Maybe Value)])),
-    materialsEltPbrMetallicRoughness :: (Maybe (PbrMetallicRoughness:|:[(Maybe Value)])),
-    materialsEltEmissiveFactor :: (Maybe ([Double])),
-    materialsEltAlphaCutoff :: (Maybe (Double:|:[(Maybe Value)])),
-    materialsEltNormalTexture :: (Maybe (NormalTexture:|:[(Maybe Value)])),
-    materialsEltName :: (Maybe (Text:|:[(Maybe Value)])),
-    materialsEltAlphaMode :: (Maybe (Text:|:[(Maybe Value)]))
-  } deriving (Show,Eq,Generic)
+data MaterialsElt = MaterialsElt
+  { _materialsEltEmissiveTexture :: Maybe EmissiveTexture
+  , _materialsEltOcclusionTexture :: Maybe TextureInfo
+  , _materialsEltExtensions :: Maybe Extensions
+  , _materialsEltDoubleSided :: Maybe Bool
+  , _materialsEltPbrMetallicRoughness :: Maybe PbrMetallicRoughness
+  , _materialsEltEmissiveFactor :: (Maybe ([Double]))
+  , _materialsEltAlphaCutoff :: Maybe Double
+  , _materialsEltNormalTexture :: Maybe NormalTexture
+  , _materialsEltName :: Maybe Text
+  , _materialsEltAlphaMode :: Maybe Text
+  } deriving (Show, Eq, Generic)
 
 
 instance FromJSON MaterialsElt where
@@ -532,7 +656,7 @@ instance FromJSON MaterialsElt where
     v .:?? "pbrMetallicRoughness" <*>
     v .:?? "emissiveFactor" <*>
     v .:?? "alphaCutoff" <*>
-    v .:?? "normalTexture" <*>
+    v .:?? "_normalTexture" <*>
     v .:?? "name" <*>
     v .:?? "alphaMode"
   parseJSON _ = mzero
@@ -541,43 +665,43 @@ instance FromJSON MaterialsElt where
 instance ToJSON MaterialsElt where
   toJSON (MaterialsElt {..}) =
     object
-      [ "emissiveTexture" .= materialsEltEmissiveTexture
-      , "occlusionTexture" .= materialsEltOcclusionTexture
-      , "extensions" .= materialsEltExtensions
-      , "doubleSided" .= materialsEltDoubleSided
-      , "pbrMetallicRoughness" .= materialsEltPbrMetallicRoughness
-      , "emissiveFactor" .= materialsEltEmissiveFactor
-      , "alphaCutoff" .= materialsEltAlphaCutoff
-      , "normalTexture" .= materialsEltNormalTexture
-      , "name" .= materialsEltName
-      , "alphaMode" .= materialsEltAlphaMode
+      [ "emissiveTexture" .= _materialsEltEmissiveTexture
+      , "occlusionTexture" .= _materialsEltOcclusionTexture
+      , "extensions" .= _materialsEltExtensions
+      , "doubleSided" .= _materialsEltDoubleSided
+      , "pbrMetallicRoughness" .= _materialsEltPbrMetallicRoughness
+      , "emissiveFactor" .= _materialsEltEmissiveFactor
+      , "alphaCutoff" .= _materialsEltAlphaCutoff
+      , "_normalTexture" .= _materialsEltNormalTexture
+      , "name" .= _materialsEltName
+      , "alphaMode" .= _materialsEltAlphaMode
       ]
   toEncoding (MaterialsElt {..}) =
     pairs
-      ("emissiveTexture" .= materialsEltEmissiveTexture <> "occlusionTexture" .=
-       materialsEltOcclusionTexture <>
+      ("emissiveTexture" .= _materialsEltEmissiveTexture <> "occlusionTexture" .=
+       _materialsEltOcclusionTexture <>
        "extensions" .=
-       materialsEltExtensions <>
+       _materialsEltExtensions <>
        "doubleSided" .=
-       materialsEltDoubleSided <>
+       _materialsEltDoubleSided <>
        "pbrMetallicRoughness" .=
-       materialsEltPbrMetallicRoughness <>
+       _materialsEltPbrMetallicRoughness <>
        "emissiveFactor" .=
-       materialsEltEmissiveFactor <>
+       _materialsEltEmissiveFactor <>
        "alphaCutoff" .=
-       materialsEltAlphaCutoff <>
-       "normalTexture" .=
-       materialsEltNormalTexture <>
+       _materialsEltAlphaCutoff <>
+       "_normalTexture" .=
+       _materialsEltNormalTexture <>
        "name" .=
-       materialsEltName <>
+       _materialsEltName <>
        "alphaMode" .=
-       materialsEltAlphaMode)
+       _materialsEltAlphaMode)
 
 
 data Extras = Extras {
-    extrasAuthor :: Text,
-    extrasTitle :: Text,
-    extrasLicense :: Text
+    _extrasAuthor :: Text,
+    _extrasTitle :: Text,
+    _extrasLicense :: Text
   } deriving (Show,Eq,Generic)
 
 
@@ -590,21 +714,21 @@ instance FromJSON Extras where
 instance ToJSON Extras where
   toJSON (Extras {..}) =
     object
-      [ "author" .= extrasAuthor
-      , "title" .= extrasTitle
-      , "license" .= extrasLicense
+      [ "author" .= _extrasAuthor
+      , "title" .= _extrasTitle
+      , "license" .= _extrasLicense
       ]
   toEncoding (Extras {..}) =
     pairs
-      ("author" .= extrasAuthor <> "title" .= extrasTitle <> "license" .=
-       extrasLicense)
+      ("author" .= _extrasAuthor <> "title" .= _extrasTitle <> "license" .=
+       _extrasLicense)
 
 
 data Asset = Asset {
-    assetCopyright :: (Maybe (Text:|:[(Maybe Value)])),
-    assetVersion :: Text,
-    assetGenerator :: (Maybe (Text:|:[(Maybe Value)])),
-    assetExtras :: (Maybe (Extras:|:[(Maybe Value)]))
+    _assetCopyright :: Maybe Text,
+    _assetVersion :: Text,
+    _assetGenerator :: Maybe Text,
+    _assetExtras :: Maybe Extras
   } deriving (Show,Eq,Generic)
 
 
@@ -616,23 +740,23 @@ instance FromJSON Asset where
 instance ToJSON Asset where
   toJSON (Asset {..}) =
     object
-      [ "copyright" .= assetCopyright
-      , "version" .= assetVersion
-      , "generator" .= assetGenerator
-      , "extras" .= assetExtras
+      [ "copyright" .= _assetCopyright
+      , "version" .= _assetVersion
+      , "generator" .= _assetGenerator
+      , "extras" .= _assetExtras
       ]
   toEncoding (Asset {..}) =
     pairs
-      ("copyright" .= assetCopyright <> "version" .= assetVersion <> "generator" .=
-       assetGenerator <>
+      ("copyright" .= _assetCopyright <> "version" .= _assetVersion <> "generator" .=
+       _assetGenerator <>
        "extras" .=
-       assetExtras)
+       _assetExtras)
 
 
 data BuffersElt = BuffersElt {
-    buffersEltUri :: Text,
-    buffersEltName :: (Maybe (Text:|:[(Maybe Value)])),
-    buffersEltByteLength :: Double
+    _buffersEltUri :: Text,
+    _buffersEltName :: Maybe Text,
+    _buffersEltByteLength :: Double
   } deriving (Show,Eq,Generic)
 
 
@@ -644,21 +768,21 @@ instance FromJSON BuffersElt where
 instance ToJSON BuffersElt where
   toJSON (BuffersElt {..}) =
     object
-      [ "uri" .= buffersEltUri
-      , "name" .= buffersEltName
-      , "byteLength" .= buffersEltByteLength
+      [ "uri" .= _buffersEltUri
+      , "name" .= _buffersEltName
+      , "byteLength" .= _buffersEltByteLength
       ]
   toEncoding (BuffersElt {..}) =
     pairs
-      ("uri" .= buffersEltUri <> "name" .= buffersEltName <> "byteLength" .=
-       buffersEltByteLength)
+      ("uri" .= _buffersEltUri <> "name" .= _buffersEltName <> "byteLength" .=
+       _buffersEltByteLength)
 
 
 data SkinsElt = SkinsElt {
-    skinsEltJoints :: [Double],
-    skinsEltSkeleton :: Double,
-    skinsEltName :: Text,
-    skinsEltInverseBindMatrices :: Double
+    _skinsEltJoints :: [Double],
+    _skinsEltSkeleton :: Double,
+    _skinsEltName :: Text,
+    _skinsEltInverseBindMatrices :: Double
   } deriving (Show,Eq,Generic)
 
 
@@ -672,22 +796,22 @@ instance FromJSON SkinsElt where
 instance ToJSON SkinsElt where
   toJSON (SkinsElt {..}) =
     object
-      [ "joints" .= skinsEltJoints
-      , "skeleton" .= skinsEltSkeleton
-      , "name" .= skinsEltName
-      , "inverseBindMatrices" .= skinsEltInverseBindMatrices
+      [ "joints" .= _skinsEltJoints
+      , "skeleton" .= _skinsEltSkeleton
+      , "name" .= _skinsEltName
+      , "inverseBindMatrices" .= _skinsEltInverseBindMatrices
       ]
   toEncoding (SkinsElt {..}) =
     pairs
-      ("joints" .= skinsEltJoints <> "skeleton" .= skinsEltSkeleton <> "name" .=
-       skinsEltName <>
+      ("joints" .= _skinsEltJoints <> "skeleton" .= _skinsEltSkeleton <> "name" .=
+       _skinsEltName <>
        "inverseBindMatrices" .=
-       skinsEltInverseBindMatrices)
+       _skinsEltInverseBindMatrices)
 
 
 data Values = Values {
-    valuesByteOffset :: Double,
-    valuesBufferView :: Double
+    _valuesByteOffset :: Int,
+    _valuesBufferView :: Int
   } deriving (Show,Eq,Generic)
 
 
@@ -697,14 +821,14 @@ instance FromJSON Values where
 
 
 instance ToJSON Values where
-  toJSON     (Values {..}) = object ["byteOffset" .= valuesByteOffset, "bufferView" .= valuesBufferView]
-  toEncoding (Values {..}) = pairs  ("byteOffset" .= valuesByteOffset<>"bufferView" .= valuesBufferView)
+  toJSON     (Values {..}) = object ["byteOffset" .= _valuesByteOffset, "bufferView" .= _valuesBufferView]
+  toEncoding (Values {..}) = pairs  ("byteOffset" .= _valuesByteOffset<>"bufferView" .= _valuesBufferView)
 
 
 data Indices = Indices {
-    indicesByteOffset :: Double,
-    indicesBufferView :: Double,
-    indicesComponentType :: Double
+    _indicesByteOffset :: Int,
+    _indicesBufferView :: Int,
+    _indicesComponentType :: ComponentType
   } deriving (Show,Eq,Generic)
 
 
@@ -713,24 +837,24 @@ instance FromJSON Indices where
   parseJSON _          = mzero
 
 
-instance ToJSON Indices where
-  toJSON (Indices {..}) =
-    object
-      [ "byteOffset" .= indicesByteOffset
-      , "bufferView" .= indicesBufferView
-      , "componentType" .= indicesComponentType
-      ]
-  toEncoding (Indices {..}) =
-    pairs
-      ("byteOffset" .= indicesByteOffset <> "bufferView" .= indicesBufferView <>
-       "componentType" .=
-       indicesComponentType)
+-- instance ToJSON Indices where
+--   toJSON (Indices {..}) =
+--     object
+--       [ "byteOffset" .= _indicesByteOffset
+--       , "bufferView" .= _indicesBufferView
+--       , "componentType" .= _indicesComponentType
+--       ]
+--   toEncoding (Indices {..}) =
+--     pairs
+--       ("byteOffset" .= _indicesByteOffset <> "bufferView" .= _indicesBufferView <>
+--        "componentType" .=
+--        _indicesComponentType)
 
 
 data Sparse = Sparse {
-    sparseValues :: Values,
-    sparseCount :: Double,
-    sparseIndices :: Indices
+    _sparseValues :: Values,
+    _sparseCount :: Int,
+    _sparseIndices :: Indices
   } deriving (Show,Eq,Generic)
 
 
@@ -739,21 +863,100 @@ instance FromJSON Sparse where
   parseJSON _          = mzero
 
 
-instance ToJSON Sparse where
-  toJSON     (Sparse {..}) = object ["values" .= sparseValues, "count" .= sparseCount, "indices" .= sparseIndices]
-  toEncoding (Sparse {..}) = pairs  ("values" .= sparseValues<>"count" .= sparseCount<>"indices" .= sparseIndices)
+-- instance ToJSON Sparse where
+--   toJSON     (Sparse {..}) = object ["values" .= _sparseValues, "count" .= _sparseCount, "indices" .= _sparseIndices]
+--   toEncoding (Sparse {..}) = pairs  ("values" .= _sparseValues<>"count" .= _sparseCount<>"indices" .= _sparseIndices)
 
+-- | Component type and size in bytes
+-- 5120 (BYTE)	1
+-- 5121(UNSIGNED_BYTE)	1
+-- 5122 (SHORT)	2
+-- 5123 (UNSIGNED_SHORT)	2
+-- 5125 (UNSIGNED_INT)	4
+-- 5126 (FLOAT)	4
+
+data ComponentType =
+  ComponentType_BYTE
+  | ComponentType_UNSIGNED_BYTE
+  | ComponentType_SHORT
+  | ComponentType_UNSIGNED_SHORT
+  | ComponentType_UNSIGNED_INT
+  | ComponentType_FLOAT
+  deriving (Show, Eq, Generic, Ord)
+
+compenentTypeFromInt = \case
+  5120 -> ComponentType_BYTE
+  5121 -> ComponentType_UNSIGNED_BYTE
+  5122 -> ComponentType_SHORT
+  5123 -> ComponentType_UNSIGNED_SHORT
+  5125 -> ComponentType_UNSIGNED_INT
+  5126 -> ComponentType_FLOAT
+  --FIXME: missing case should throw
+
+compenentTypeToInt = \case
+  ComponentType_BYTE -> 5120
+  ComponentType_UNSIGNED_BYTE -> 5121
+  ComponentType_SHORT -> 5122
+  ComponentType_UNSIGNED_SHORT -> 5123
+  ComponentType_UNSIGNED_INT -> 5125
+  ComponentType_FLOAT -> 5126
+
+instance FromJSON ComponentType where
+  parseJSON (Number n) = toInt n
+    where
+      toInt n =
+        if isInteger n
+          then case (toBoundedInteger n :: Maybe Int) of
+                 Just s -> pure $ compenentTypeFromInt s
+                 Nothing -> empty
+          else empty
+  parseJSON _ = empty
+
+--FIXME: ToJson instances
+
+data Component
+  = Component_SCALAR
+  | Component_VEC2
+  | Component_VEC3
+  | Component_VEC4
+  | Component_MAT2
+  | Component_MAT3
+  | Component_MAT4
+  deriving (Show,Eq,Generic)
+
+nComponents = \case
+  Component_SCALAR -> 1
+  Component_VEC2 -> 2
+  Component_VEC3 -> 3
+  Component_VEC4 -> 4
+  Component_MAT2 -> 4
+  Component_MAT3 -> 9
+  Component_MAT4 -> 16
+
+instance FromJSON Component where
+  parseJSON (String s) = fromString s
+    where
+      fromString "SCALAR" = pure Component_SCALAR
+      fromString "VEC2" = pure Component_VEC2
+      fromString "VEC3" = pure Component_VEC3
+      fromString "VEC4" = pure Component_VEC4
+      fromString "MAT2" = pure Component_MAT2
+      fromString "MAT3" = pure Component_MAT3
+      fromString "MAT4" = pure Component_MAT4
+  parseJSON _ = empty
+
+-- FIXME: ToJson
 
 data AccessorsElt = AccessorsElt {
-    accessorsEltMax :: (Maybe ([Double])),
-    accessorsEltByteOffset :: (Maybe (Double:|:[(Maybe Value)])),
-    accessorsEltBufferView :: (Maybe (Double:|:[(Maybe Value)])),
-    accessorsEltCount :: Double,
-    accessorsEltSparse :: (Maybe (Sparse:|:[(Maybe Value)])),
-    accessorsEltName :: (Maybe (Text:|:[(Maybe Value)])),
-    accessorsEltComponentType :: Double,
-    accessorsEltMin :: (Maybe ([Double])),
-    accessorsEltType :: Text
+    _accessorsEltMax :: Maybe ([Double]),
+    _accessorsEltByteOffset :: Maybe Int,
+    _accessorsEltBufferView :: (Maybe Int),
+    _accessorsEltCount :: Int,
+    _accessorsEltSparse :: Maybe Sparse,
+    _accessorsEltName :: Maybe Text,
+    _accessorsEltComponentType :: ComponentType,
+    _accessorsEltMin :: (Maybe ([Double])),
+    _accessorsEltType :: Component
   } deriving (Show,Eq,Generic)
 
 
@@ -770,43 +973,44 @@ instance FromJSON AccessorsElt where
   parseJSON _ = mzero
 
 
-instance ToJSON AccessorsElt where
-  toJSON (AccessorsElt {..}) =
-    object
-      [ "max" .= accessorsEltMax
-      , "byteOffset" .= accessorsEltByteOffset
-      , "bufferView" .= accessorsEltBufferView
-      , "count" .= accessorsEltCount
-      , "sparse" .= accessorsEltSparse
-      , "name" .= accessorsEltName
-      , "componentType" .= accessorsEltComponentType
-      , "min" .= accessorsEltMin
-      , "type" .= accessorsEltType
-      ]
-  toEncoding (AccessorsElt {..}) =
-    pairs
-      ("max" .= accessorsEltMax <> "byteOffset" .= accessorsEltByteOffset <>
-       "bufferView" .=
-       accessorsEltBufferView <>
-       "count" .=
-       accessorsEltCount <>
-       "sparse" .=
-       accessorsEltSparse <>
-       "name" .=
-       accessorsEltName <>
-       "componentType" .=
-       accessorsEltComponentType <>
-       "min" .=
-       accessorsEltMin <>
-       "type" .=
-       accessorsEltType)
+-- instance ToJSON AccessorsElt where
+--   toJSON (AccessorsElt {..}) =
+--     object
+--       [ "max" .= _accessorsEltMax
+--       , "byteOffset" .= _accessorsEltByteOffset
+--       , "bufferView" .= _accessorsEltBufferView
+--       , "count" .= _accessorsEltCount
+--       , "sparse" .= _accessorsEltSparse
+--       , "name" .= _accessorsEltName
+--       , "componentType" .= _accessorsEltComponentType
+--       , "min" .= _accessorsEltMin
+--       , "type" .= _accessorsEltType
+--       ]
+  -- toEncoding (AccessorsElt {..}) =
+  --   pairs
+  --     ("max" .= _accessorsEltMax <> "byteOffset" .= _accessorsEltByteOffset <>
+  --      "bufferView" .=
+  --      _accessorsEltBufferView <>
+  --      "count" .=
+  --      _accessorsEltCount <>
+  --      "sparse" .=
+  --      _accessorsEltSparse <>
+  --      "name" .=
+  --      _accessorsEltName <>
+  --      "componentType" .=
+  --      _accessorsEltComponentType <>
+  --      "min" .=
+  --      _accessorsEltMin <>
+  --      "type" .=
+  --      _accessorsEltType
+      -- )
 
 
 data Orthographic = Orthographic {
-    orthographicZfar :: Double,
-    orthographicZnear :: Double,
-    orthographicXmag :: Double,
-    orthographicYmag :: Double
+    _orthographicZfar :: Double,
+    _orthographicZnear :: Double,
+    _orthographicXmag :: Double,
+    _orthographicYmag :: Double
   } deriving (Show,Eq,Generic)
 
 
@@ -818,24 +1022,24 @@ instance FromJSON Orthographic where
 instance ToJSON Orthographic where
   toJSON (Orthographic {..}) =
     object
-      [ "zfar" .= orthographicZfar
-      , "znear" .= orthographicZnear
-      , "xmag" .= orthographicXmag
-      , "ymag" .= orthographicYmag
+      [ "zfar" .= _orthographicZfar
+      , "znear" .= _orthographicZnear
+      , "xmag" .= _orthographicXmag
+      , "ymag" .= _orthographicYmag
       ]
   toEncoding (Orthographic {..}) =
     pairs
-      ("zfar" .= orthographicZfar <> "znear" .= orthographicZnear <> "xmag" .=
-       orthographicXmag <>
+      ("zfar" .= _orthographicZfar <> "znear" .= _orthographicZnear <> "xmag" .=
+       _orthographicXmag <>
        "ymag" .=
-       orthographicYmag)
+       _orthographicYmag)
 
 
 data Perspective = Perspective {
-    perspectiveZfar :: Double,
-    perspectiveZnear :: Double,
-    perspectiveAspectRatio :: (Maybe (Double:|:[(Maybe Value)])),
-    perspectiveYfov :: Double
+    _perspectiveZfar :: Double,
+    _perspectiveZnear :: Double,
+    _perspectiveAspectRatio :: Maybe Double,
+    _perspectiveYfov :: Double
   } deriving (Show,Eq,Generic)
 
 
@@ -847,24 +1051,24 @@ instance FromJSON Perspective where
 instance ToJSON Perspective where
   toJSON (Perspective {..}) =
     object
-      [ "zfar" .= perspectiveZfar
-      , "znear" .= perspectiveZnear
-      , "aspectRatio" .= perspectiveAspectRatio
-      , "yfov" .= perspectiveYfov
+      [ "zfar" .= _perspectiveZfar
+      , "znear" .= _perspectiveZnear
+      , "aspectRatio" .= _perspectiveAspectRatio
+      , "yfov" .= _perspectiveYfov
       ]
   toEncoding (Perspective {..}) =
     pairs
-      ("zfar" .= perspectiveZfar <> "znear" .= perspectiveZnear <> "aspectRatio" .=
-       perspectiveAspectRatio <>
+      ("zfar" .= _perspectiveZfar <> "znear" .= _perspectiveZnear <> "aspectRatio" .=
+       _perspectiveAspectRatio <>
        "yfov" .=
-       perspectiveYfov)
+       _perspectiveYfov)
 
 
 data CamerasElt = CamerasElt
-  { camerasEltOrthographic :: (Maybe (Orthographic :|: [(Maybe Value)]))
-  , camerasEltPerspective :: (Maybe (Perspective :|: [(Maybe Value)]))
-  , camerasEltName :: (Maybe (Text :|: [(Maybe Value)]))
-  , camerasEltType :: Text
+  { _camerasEltOrthographic :: Maybe Orthographic
+  , _camerasEltPerspective :: Maybe Perspective
+  , _camerasEltName :: Maybe Text
+  , _camerasEltType :: Text
   } deriving (Show, Eq, Generic)
 
 
@@ -876,24 +1080,24 @@ instance FromJSON CamerasElt where
 instance ToJSON CamerasElt where
   toJSON (CamerasElt {..}) =
     object
-      [ "orthographic" .= camerasEltOrthographic
-      , "perspective" .= camerasEltPerspective
-      , "name" .= camerasEltName
-      , "type" .= camerasEltType
+      [ "orthographic" .= _camerasEltOrthographic
+      , "perspective" .= _camerasEltPerspective
+      , "name" .= _camerasEltName
+      , "type" .= _camerasEltType
       ]
   toEncoding (CamerasElt {..}) =
     pairs
-      ("orthographic" .= camerasEltOrthographic <> "perspective" .=
-       camerasEltPerspective <>
+      ("orthographic" .= _camerasEltOrthographic <> "perspective" .=
+       _camerasEltPerspective <>
        "name" .=
-       camerasEltName <>
+       _camerasEltName <>
        "type" .=
-       camerasEltType)
+       _camerasEltType)
 
 
 data ScenesElt = ScenesElt {
-    scenesEltName :: (Maybe (Text:|:[(Maybe Value)])),
-    scenesEltNodes :: [Double]
+    _scenesEltName :: Maybe Text,
+    _scenesEltNodes :: [Double]
   } deriving (Show,Eq,Generic)
 
 
@@ -903,13 +1107,15 @@ instance FromJSON ScenesElt where
 
 
 instance ToJSON ScenesElt where
-  toJSON     (ScenesElt {..}) = object ["name" .= scenesEltName, "nodes" .= scenesEltNodes]
-  toEncoding (ScenesElt {..}) = pairs  ("name" .= scenesEltName<>"nodes" .= scenesEltNodes)
+  toJSON (ScenesElt {..}) =
+    object ["name" .= _scenesEltName, "nodes" .= _scenesEltNodes]
+  toEncoding (ScenesElt {..}) =
+    pairs ("name" .= _scenesEltName <> "nodes" .= _scenesEltNodes)
 
 
 data Target = Target {
-    targetPath :: Text,
-    targetNode :: Double
+    _targetPath :: Text,
+    _targetNode :: Int
   } deriving (Show,Eq,Generic)
 
 
@@ -919,13 +1125,14 @@ instance FromJSON Target where
 
 
 instance ToJSON Target where
-  toJSON     (Target {..}) = object ["path" .= targetPath, "node" .= targetNode]
-  toEncoding (Target {..}) = pairs  ("path" .= targetPath<>"node" .= targetNode)
+  toJSON (Target {..}) = object ["path" .= _targetPath, "node" .= _targetNode]
+  toEncoding (Target {..}) =
+    pairs ("path" .= _targetPath <> "node" .= _targetNode)
 
 
 data ChannelsElt = ChannelsElt {
-    channelsEltSampler :: Double,
-    channelsEltTarget :: Target
+    _channelsEltSampler :: Int,
+    _channelsEltTarget :: Target
   } deriving (Show,Eq,Generic)
 
 
@@ -935,37 +1142,40 @@ instance FromJSON ChannelsElt where
 
 
 instance ToJSON ChannelsElt where
-  toJSON     (ChannelsElt {..}) = object ["sampler" .= channelsEltSampler, "target" .= channelsEltTarget]
-  toEncoding (ChannelsElt {..}) = pairs  ("sampler" .= channelsEltSampler<>"target" .= channelsEltTarget)
+  toJSON (ChannelsElt {..}) =
+    object ["sampler" .= _channelsEltSampler, "target" .= _channelsEltTarget]
+  toEncoding (ChannelsElt {..}) =
+    pairs ("sampler" .= _channelsEltSampler <> "target" .= _channelsEltTarget)
 
 
-data AnimationsElt = AnimationsElt {
-    animationsEltSamplers :: [SamplersElt],
-    animationsEltChannels :: [ChannelsElt],
-    animationsEltName :: (Maybe (Text:|:[(Maybe Value)]))
-  } deriving (Show,Eq,Generic)
+data AnimationsElt = AnimationsElt
+  { _animationsEltSamplers :: [SamplersElt]
+  , _animationsEltChannels :: [ChannelsElt]
+  , _animationsEltName :: Maybe Text
+  } deriving (Show, Eq, Generic)
 
 
 instance FromJSON AnimationsElt where
-  parseJSON (Object v) = AnimationsElt <$> v .:   "samplers" <*> v .:   "channels" <*> v .:?? "name"
-  parseJSON _          = mzero
+  parseJSON (Object v) =
+    AnimationsElt <$> v .: "samplers" <*> v .: "channels" <*> v .:?? "name"
+  parseJSON _ = mzero
 
 
-instance ToJSON AnimationsElt where
-  toJSON     (AnimationsElt {..}) = object ["samplers" .= animationsEltSamplers, "channels" .= animationsEltChannels, "name" .= animationsEltName]
-  toEncoding (AnimationsElt {..}) = pairs  ("samplers" .= animationsEltSamplers<>"channels" .= animationsEltChannels<>"name" .= animationsEltName)
+-- instance ToJSON AnimationsElt where
+--   toJSON     (AnimationsElt {..}) = object ["samplers" .= _animationsEltSamplers, "channels" .= _animationsEltChannels, "name" .= _animationsEltName]
+--   toEncoding (AnimationsElt {..}) = pairs  ("samplers" .= _animationsEltSamplers<>"channels" .= _animationsEltChannels<>"name" .= _animationsEltName)
 
 
 data NodesElt = NodesElt {
-    nodesEltRotation :: (Maybe ([Double])),
-    nodesEltScale :: (Maybe ([Double])),
-    nodesEltChildren :: (Maybe ([Double])),
-    nodesEltMatrix :: (Maybe ([Double])),
-    nodesEltSkin :: (Maybe (Double:|:[(Maybe Value)])),
-    nodesEltName :: (Maybe (Text:|:[(Maybe Value)])),
-    nodesEltTranslation :: (Maybe ([Double])),
-    nodesEltMesh :: (Maybe (Double:|:[(Maybe Value)])),
-    nodesEltCamera :: (Maybe (Double:|:[(Maybe Value)]))
+    _nodesEltRotation :: (Maybe ([Double])),
+    _nodesEltScale :: (Maybe ([Double])),
+    _nodesEltChildren :: Maybe [Int],
+    _nodesEltMatrix :: (Maybe ([Double])),
+    _nodesEltSkin :: Maybe Int,
+    _nodesEltName :: Maybe Text,
+    _nodesEltTranslation :: (Maybe ([Double])),
+    _nodesEltMesh :: Maybe Int,
+    _nodesEltCamera :: Maybe Int
   } deriving (Show,Eq,Generic)
 
 
@@ -984,90 +1194,90 @@ instance FromJSON NodesElt where
 instance ToJSON NodesElt where
   toJSON (NodesElt {..}) =
     object
-      [ "rotation" .= nodesEltRotation
-      , "scale" .= nodesEltScale
-      , "children" .= nodesEltChildren
-      , "matrix" .= nodesEltMatrix
-      , "skin" .= nodesEltSkin
-      , "name" .= nodesEltName
-      , "translation" .= nodesEltTranslation
-      , "mesh" .= nodesEltMesh
-      , "camera" .= nodesEltCamera
+      [ "rotation" .= _nodesEltRotation
+      , "scale" .= _nodesEltScale
+      , "children" .= _nodesEltChildren
+      , "matrix" .= _nodesEltMatrix
+      , "skin" .= _nodesEltSkin
+      , "name" .= _nodesEltName
+      , "translation" .= _nodesEltTranslation
+      , "mesh" .= _nodesEltMesh
+      , "camera" .= _nodesEltCamera
       ]
   toEncoding (NodesElt {..}) =
     pairs
-      ("rotation" .= nodesEltRotation <> "scale" .= nodesEltScale <> "children" .=
-       nodesEltChildren <>
+      ("rotation" .= _nodesEltRotation <> "scale" .= _nodesEltScale <> "children" .=
+       _nodesEltChildren <>
        "matrix" .=
-       nodesEltMatrix <>
+       _nodesEltMatrix <>
        "skin" .=
-       nodesEltSkin <>
+       _nodesEltSkin <>
        "name" .=
-       nodesEltName <>
+       _nodesEltName <>
        "translation" .=
-       nodesEltTranslation <>
+       _nodesEltTranslation <>
        "mesh" .=
-       nodesEltMesh <>
+       _nodesEltMesh <>
        "camera" .=
-       nodesEltCamera)
+       _nodesEltCamera)
 
 
 data BufferViewsElt = BufferViewsElt {
-    bufferViewsEltByteOffset :: (Maybe (Double:|:[(Maybe Value)])),
-    bufferViewsEltName :: (Maybe (Text:|:[(Maybe Value)])),
-    bufferViewsEltByteStride :: (Maybe (Double:|:[(Maybe Value)])),
-    bufferViewsEltBuffer :: Double,
-    bufferViewsEltByteLength :: Double,
-    bufferViewsEltTarget :: (Maybe (Double:|:[(Maybe Value)]))
+    _bufferViewsEltByteOffset :: Maybe Int,
+    _bufferViewsEltName :: (Maybe Text),
+    _bufferViewsEltByteStride :: Maybe Int,
+    _bufferViewsEltBuffer :: Int,
+    _bufferViewsEltByteLength :: Int,
+    _bufferViewsEltTarget :: Maybe Int
   } deriving (Show,Eq,Generic)
 
 
 instance FromJSON BufferViewsElt where
   parseJSON (Object v) = BufferViewsElt <$> v .:?? "byteOffset" <*> v .:?? "name" <*> v .:?? "byteStride" <*> v .:   "buffer" <*> v .:   "byteLength" <*> v .:?? "target"
-  parseJON _          = mzero
+  parseJSON _          = mzero
 
 
 instance ToJSON BufferViewsElt where
   toJSON (BufferViewsElt {..}) =
     object
-      [ "byteOffset" .= bufferViewsEltByteOffset
-      , "name" .= bufferViewsEltName
-      , "byteStride" .= bufferViewsEltByteStride
-      , "buffer" .= bufferViewsEltBuffer
-      , "byteLength" .= bufferViewsEltByteLength
-      , "target" .= bufferViewsEltTarget
+      [ "byteOffset" .= _bufferViewsEltByteOffset
+      , "name" .= _bufferViewsEltName
+      , "byteStride" .= _bufferViewsEltByteStride
+      , "buffer" .= _bufferViewsEltBuffer
+      , "byteLength" .= _bufferViewsEltByteLength
+      , "target" .= _bufferViewsEltTarget
       ]
   toEncoding (BufferViewsElt {..}) =
     pairs
-      ("byteOffset" .= bufferViewsEltByteOffset <> "name" .= bufferViewsEltName <>
+      ("byteOffset" .= _bufferViewsEltByteOffset <> "name" .= _bufferViewsEltName <>
        "byteStride" .=
-       bufferViewsEltByteStride <>
+       _bufferViewsEltByteStride <>
        "buffer" .=
-       bufferViewsEltBuffer <>
+       _bufferViewsEltBuffer <>
        "byteLength" .=
-       bufferViewsEltByteLength <>
+       _bufferViewsEltByteLength <>
        "target" .=
-       bufferViewsEltTarget)
+       _bufferViewsEltTarget)
 
 
 data TopLevel = TopLevel {
-    topLevelImages :: (Maybe ([ImagesElt])),
-    topLevelTextures :: (Maybe ([TexturesElt])),
-    topLevelSamplers :: (Maybe ([SamplersElt])),
-    topLevelMeshes :: [MeshesElt],
-    topLevelExtensionsUsed :: (Maybe ([Text])),
-    topLevelMaterials :: (Maybe ([MaterialsElt])),
-    topLevelAsset :: Asset,
-    topLevelBuffers :: [BuffersElt],
-    topLevelExtensionsRequired :: (Maybe ([Text])),
-    topLevelSkins :: (Maybe ([SkinsElt])),
-    topLevelAccessors :: [AccessorsElt],
-    topLevelCameras :: (Maybe ([CamerasElt])),
-    topLevelScenes :: [ScenesElt],
-    topLevelAnimations :: (Maybe ([AnimationsElt])),
-    topLevelNodes :: [NodesElt],
-    topLevelBufferViews :: [BufferViewsElt],
-    topLevelScene :: (Maybe (Double:|:[(Maybe Value)]))
+    _topLevelImages :: (Maybe ([ImagesElt])),
+    _topLevelTextures :: (Maybe ([TexturesElt])),
+    _topLevelSamplers :: (Maybe ([SamplersElt])),
+    _topLevelMeshes :: [MeshesElt],
+    _topLevelExtensionsUsed :: (Maybe ([Text])),
+    _topLevelMaterials :: (Maybe ([MaterialsElt])),
+    _topLevelAsset :: Asset,
+    _topLevelBuffers :: [BuffersElt],
+    _topLevelExtensionsRequired :: (Maybe ([Text])),
+    _topLevelSkins :: (Maybe ([SkinsElt])),
+    _topLevelAccessors :: [AccessorsElt],
+    _topLevelCameras :: (Maybe ([CamerasElt])),
+    _topLevelScenes :: [ScenesElt],
+    _topLevelAnimations :: (Maybe ([AnimationsElt])),
+    _topLevelNodes :: [NodesElt],
+    _topLevelBufferViews :: [BufferViewsElt],
+    _topLevelScene :: Maybe Int
   } deriving (Show,Eq,Generic)
 
 
@@ -1091,60 +1301,61 @@ instance FromJSON TopLevel where
   parseJSON _ = mzero
 
 
-instance ToJSON TopLevel where
-  toJSON (TopLevel {..}) =
-    object
-      [ "images" .= topLevelImages
-      , "textures" .= topLevelTextures
-      , "samplers" .= topLevelSamplers
-      , "meshes" .= topLevelMeshes
-      , "extensionsUsed" .= topLevelExtensionsUsed
-      , "materials" .= topLevelMaterials
-      , "asset" .= topLevelAsset
-      , "buffers" .= topLevelBuffers
-      , "extensionsRequired" .= topLevelExtensionsRequired
-      , "skins" .= topLevelSkins
-      , "accessors" .= topLevelAccessors
-      , "cameras" .= topLevelCameras
-      , "scenes" .= topLevelScenes
-      , "animations" .= topLevelAnimations
-      , "nodes" .= topLevelNodes
-      , "bufferViews" .= topLevelBufferViews
-      , "scene" .= topLevelScene
-      ]
-  toEncoding (TopLevel {..}) =
-    pairs
-      ("images" .= topLevelImages <> "textures" .= topLevelTextures <>
-       "samplers" .=
-       topLevelSamplers <>
-       "meshes" .=
-       topLevelMeshes <>
-       "extensionsUsed" .=
-       topLevelExtensionsUsed <>
-       "materials" .=
-       topLevelMaterials <>
-       "asset" .=
-       topLevelAsset <>
-       "buffers" .=
-       topLevelBuffers <>
-       "extensionsRequired" .=
-       topLevelExtensionsRequired <>
-       "skins" .=
-       topLevelSkins <>
-       "accessors" .=
-       topLevelAccessors <>
-       "cameras" .=
-       topLevelCameras <>
-       "scenes" .=
-       topLevelScenes <>
-       "animations" .=
-       topLevelAnimations <>
-       "nodes" .=
-       topLevelNodes <>
-       "bufferViews" .=
-       topLevelBufferViews <>
-       "scene" .=
-       topLevelScene)
+-- instance ToJSON TopLevel where
+--   toJSON (TopLevel {..}) =
+--     object
+--       [ "images" .= _topLevelImages
+--       , "textures" .= _topLevelTextures
+--       , "samplers" .= _topLevelSamplers
+--       , "meshes" .= _topLevelMeshes
+--       , "extensionsUsed" .= _topLevelExtensionsUsed
+--       , "materials" .= _topLevelMaterials
+--       , "asset" .= _topLevelAsset
+--       , "buffers" .= _topLevelBuffers
+--       , "extensionsRequired" .= _topLevelExtensionsRequired
+--       , "skins" .= _topLevelSkins
+--       , "accessors" .= _topLevelAccessors
+--       , "cameras" .= _topLevelCameras
+--       , "scenes" .= _topLevelScenes
+--       , "animations" .= _topLevelAnimations
+--       , "nodes" .= _topLevelNodes
+--       , "bufferViews" .= _topLevelBufferViews
+--       , "scene" .= _topLevelScene
+--       ]
+  -- toEncoding (TopLevel {..}) =
+  --   pairs
+  --     ("images" .= _topLevelImages <> "textures" .= _topLevelTextures <>
+  --      "samplers" .=
+  --      _topLevelSamplers <>
+  --      "meshes" .=
+  --      _topLevelMeshes <>
+  --      "extensionsUsed" .=
+  --      _topLevelExtensionsUsed <>
+  --      "materials" .=
+  --      _topLevelMaterials <>
+  --      "asset" .=
+  --      _topLevelAsset <>
+  --      "buffers" .=
+  --      _topLevelBuffers <>
+  --      "extensionsRequired" .=
+  --      _topLevelExtensionsRequired <>
+  --      "skins" .=
+  --      _topLevelSkins <>
+  --      "accessors" .=
+  --      _topLevelAccessors <>
+  --      "cameras" .=
+  --      _topLevelCameras <>
+  --      "scenes" .=
+  --      _topLevelScenes <>
+  --      "animations" .=
+  --      _topLevelAnimations <>
+  --      "nodes" .=
+  --      _topLevelNodes <>
+  --      "bufferViews" .=
+  --      _topLevelBufferViews <>
+  --      "scene" .=
+  --      _topLevelScene
+      -- )
 
 
 
@@ -1164,20 +1375,50 @@ parse filename = do
                 hPutStrLn stderr msg
                 exitFailure
 
-main :: IO ()
-main = do
-        filenames <- getArgs
-        forM_
-                filenames
-                (\f ->
-                        parse f
-                                >>= (\p ->
-                                            p
-                                                    `seq` putStrLn
-                                                    $     "Successfully parsed "
-                                                    ++    f
-                                    )
-                )
-        exitSuccess
 
+mconcat <$> traverse
+  makeLenses
+  [''Attributes
+  , ''KHRDracoMeshCompression
+  , ''TextureInfo
+  , ''KHRMaterialsPbrSpecularGlossiness
+  , ''KHRTextureTransform
+  , ''ImagesElt
+  , ''TexturesElt
+  , ''SamplersElt
+  , ''Extensions
+  , ''TargetsElt
+  , ''PrimitivesElt
+  , ''MeshesElt
+  , ''EmissiveTexture
+  , ''BaseColorTexture
+  , ''PbrMetallicRoughness
+  , ''NormalTexture
+  , ''MaterialsElt
+  , ''Extras
+  , ''Asset
+  , ''BuffersElt
+  , ''SkinsElt
+  , ''Values
+  , ''Indices
+  , ''Sparse
+  , ''AccessorsElt
+  , ''Orthographic
+  , ''Perspective
+  , ''CamerasElt
+  , ''ScenesElt
+  , ''Target
+  , ''ChannelsElt
+  , ''AnimationsElt
+  , ''NodesElt
+  , ''BufferViewsElt
+  , ''TopLevel
+  ]
 
+mconcat <$> traverse
+  makePrisms
+  [''Interpolation
+  , ''MinFilter
+  , ''MagFilter
+  , ''PrimitiveMode
+  ]
