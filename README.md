@@ -8,8 +8,10 @@
 
 Parsing and serialization support for the transfer of 3d assets as described by the `gltf` specification (version 2.0).
 
+This package aims to support loading assets in the `gltf` format and efficient, no-copy conversions to datatypes used in the (vulkan-api)[https://github.com/achirkin/vulkan]
+
 ## Roadmap
 
-[x] FromJSON instances (supports loading `.gltf` files)
-[] uri ingestion to `PrimBytes` arrays for efficient interop with the `vulkan-api` library
-[] ToJSON instances for all data structures.
+- [x] FromJSON instances (supports loading `.gltf` files)
+- [ ] uri ingestion to `PrimBytes` arrays for efficient interop with the `vulkan-api` library
+- [ ] ToJSON instances for all data structures.
