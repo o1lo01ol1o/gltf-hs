@@ -22,10 +22,15 @@ source-repository head
 
 library
   hs-source-dirs:      src
-  exposed-modules:     GltfEasytensor
+  exposed-modules:     GltfEasytensor, GltfTypes
                        
 
   build-depends:       base ^>= 4.11.1.0
+                       , aeson
+                       , text
+                       , bytestring >= 0.10
+                       , json-autotype
+  
                      
 
   ghc-options:         -Wall
