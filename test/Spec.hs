@@ -7,4 +7,6 @@ main = do
   defaultMain (tests fs)
 
 
-tests fs = testGroup "Tests" [parsingUnitTests fs]
+tests fs = testGroup "Tests" [
+  parsingUnitTests fs,
+  uriUnitTests fs]

@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE TypeOperators       #-}
 {-# LANGUAGE DeriveGeneric       #-}
@@ -13,10 +14,20 @@ import           System.IO                      ( stderr
                                                 , hPutStrLn
                                                 )
 import Data.Aeson.Types                          ( Parser )
-import qualified Data.ByteString.Lazy.Char8    as BSL
+import qualified Data.ByteString.Lazy.Char8    as BSL hiding (stripPrefix)
+import qualified Data.ByteString.Base64 as BS64
+import Control.Monad.IO.Class (MonadIO(..))
+import Data.Foldable (concat)
+import Data.Text.Encoding (encodeUtf8)
+import qualified Data.Text as T
+import Control.Exception.Base (IOException(..), Exception(..))
+import GHC.IO.Exception (IOError(..))
+import Control.Monad.Catch (MonadThrow, throwM)
+import System.Directory (doesFileExist)
 import           Control.Monad                  ( mzero
                                                 , join
                                                 )
+import Path (Rel, Abs, File, Dir, Path, toFilePath, parseRelFile, (</>))
 import Data.Scientific (isInteger, toBoundedInteger)
 import           Control.Applicative
 import           Data.Aeson.AutoType.Alternative
@@ -30,9 +41,19 @@ import           Data.Aeson                     ( decode
                                                 , (.=)
                                                 , object
                                                 )
+import Data.Coerce
+import Data.Maybe (isJust, fromJust)
+import System.IO (openFile, IOMode(..))
+import qualified Data.ByteString as B hiding (stripPrefix)
+import Data.Text.Conversions (convertText, Base64(..), fromText)
 import Data.Int (Int64)
-import           Data.Text                      ( Text )
+import           Data.Text                      ( Text, isPrefixOf, stripPrefix )
 import Control.Lens.TH (makeLenses, makePrisms)
+import Control.Lens ((^.), (&), (^?))
+import qualified Data.List.NonEmpty as NE
+import qualified Text.URI as URI
+import Text.URI (URI)
+import Text.URI.Lens
 import           GHC.Generics
 
 -- | Workaround for https://github.com/bos/aeson/issues/287.
@@ -124,7 +145,7 @@ instance ToJSON TextureInfo where
 
 data KHRMaterialsPbrSpecularGlossiness = KHRMaterialsPbrSpecularGlossiness {
     _kHRMaterialsPbrSpecularGlossinessGlossinessFactor :: Maybe Double,
-    _kHRMaterialsPbrSpecularGlossinessSpecularFactor :: (Maybe ([Double])), -- number[3]
+    _kHRMaterialsPbrSpecularGlossinessSpecularFactor :: (Maybe([Double])), -- number[3]
     _kHRMaterialsPbrSpecularGlossinessDiffuseFactor :: (Maybe ([Double])), -- number[4]
     _kHRMaterialsPbrSpecularGlossinessSpecularGlossinessTexture :: Maybe TextureInfo,
     _kHRMaterialsPbrSpecularGlossinessTextureInfo :: (Maybe (TextureInfo))
@@ -134,8 +155,8 @@ data KHRMaterialsPbrSpecularGlossiness = KHRMaterialsPbrSpecularGlossiness {
 instance FromJSON KHRMaterialsPbrSpecularGlossiness where
   parseJSON (Object v) =
     KHRMaterialsPbrSpecularGlossiness <$> v .:?? "glossinessFactor" <*>
-    v .:?? "specularFactor" <*>
-    v .:?? "diffuseFactor" <*>
+    (v .:?? "specularFactor") <*>
+    (v .:?? "diffuseFactor") <*>
     v .:?? "specularGlossinessTexture" <*>
     v .:?? "diffuseTexture"
   parseJSON _ = mzero
@@ -191,36 +212,38 @@ instance ToJSON KHRTextureTransform where
        "scale" .=
        _kHRTextureTransformScale)
 
+newtype Uri = Uri {unUri :: Text} deriving (Show, Eq, Ord, Read, Generic)
 
 data ImagesElt = ImagesElt {
-    _imagesEltUri :: Text,
+    _imagesEltUri :: Uri,
     _imagesEltMimeType :: Maybe Text,
     _imagesEltName :: Maybe Text
   } deriving (Show,Eq,Generic)
 
 
 instance FromJSON ImagesElt where
-  parseJSON (Object v) = ImagesElt <$> v .:   "uri" <*> v .:?? "mimeType" <*> v .:?? "name"
-  parseJSON _          = mzero
+  parseJSON (Object v) =
+    ImagesElt <$> (Uri <$> (v .: "uri")) <*> v .:?? "mimeType" <*> v .:?? "name"
+  parseJSON _ = mzero
 
 
 instance ToJSON ImagesElt where
   toJSON (ImagesElt {..}) =
     object
-      [ "uri" .= _imagesEltUri
+      [ "uri" .= (unUri $ _imagesEltUri)
       , "mimeType" .= _imagesEltMimeType
       , "name" .= _imagesEltName
       ]
   toEncoding (ImagesElt {..}) =
     pairs
-      ("uri" .= _imagesEltUri <> "mimeType" .= _imagesEltMimeType <> "name" .=
+      ("uri" .= (unUri $ _imagesEltUri) <> "mimeType" .= _imagesEltMimeType <> "name" .=
        _imagesEltName)
 
 
 data TexturesElt = TexturesElt {
-    _texturesEltSampler :: (Maybe (Double:|:[(Maybe Value)])),
-    _texturesEltName :: (Maybe (Text:|:[(Maybe Value)])),
-    _texturesEltSource :: Double
+    _texturesEltSampler :: Maybe Int,
+    _texturesEltName :: Maybe Text,
+    _texturesEltSource :: Int
   } deriving (Show,Eq,Generic)
 
 
@@ -754,27 +777,27 @@ instance ToJSON Asset where
 
 
 data BuffersElt = BuffersElt {
-    _buffersEltUri :: Text,
+    _buffersEltUri :: Uri,
     _buffersEltName :: Maybe Text,
     _buffersEltByteLength :: Double
   } deriving (Show,Eq,Generic)
 
 
 instance FromJSON BuffersElt where
-  parseJSON (Object v) = BuffersElt <$> v .:   "uri" <*> v .:?? "name" <*> v .:   "byteLength"
+  parseJSON (Object v) = BuffersElt <$> (Uri <$> v .:   "uri") <*> v .:?? "name" <*> v .:   "byteLength"
   parseJSON _          = mzero
 
 
 instance ToJSON BuffersElt where
   toJSON (BuffersElt {..}) =
     object
-      [ "uri" .= _buffersEltUri
+      [ "uri" .= (unUri _buffersEltUri)
       , "name" .= _buffersEltName
       , "byteLength" .= _buffersEltByteLength
       ]
   toEncoding (BuffersElt {..}) =
     pairs
-      ("uri" .= _buffersEltUri <> "name" .= _buffersEltName <> "byteLength" .=
+      ("uri" .= (unUri _buffersEltUri) <> "name" .= _buffersEltName <> "byteLength" .=
        _buffersEltByteLength)
 
 
@@ -948,7 +971,7 @@ instance FromJSON Component where
 -- FIXME: ToJson
 
 data AccessorsElt = AccessorsElt {
-    _accessorsEltMax :: Maybe ([Double]),
+    _accessorsEltMax :: (Maybe [Double]),
     _accessorsEltByteOffset :: Maybe Int,
     _accessorsEltBufferView :: (Maybe Int),
     _accessorsEltCount :: Int,
@@ -1260,41 +1283,43 @@ instance ToJSON BufferViewsElt where
        _bufferViewsEltTarget)
 
 
-data TopLevel = TopLevel {
-    _topLevelImages :: (Maybe ([ImagesElt])),
-    _topLevelTextures :: (Maybe ([TexturesElt])),
-    _topLevelSamplers :: (Maybe ([SamplersElt])),
-    _topLevelMeshes :: [MeshesElt],
-    _topLevelExtensionsUsed :: (Maybe ([Text])),
-    _topLevelMaterials :: (Maybe ([MaterialsElt])),
-    _topLevelAsset :: Asset,
-    _topLevelBuffers :: [BuffersElt],
-    _topLevelExtensionsRequired :: (Maybe ([Text])),
-    _topLevelSkins :: (Maybe ([SkinsElt])),
-    _topLevelAccessors :: [AccessorsElt],
-    _topLevelCameras :: (Maybe ([CamerasElt])),
-    _topLevelScenes :: [ScenesElt],
-    _topLevelAnimations :: (Maybe ([AnimationsElt])),
-    _topLevelNodes :: [NodesElt],
-    _topLevelBufferViews :: [BufferViewsElt],
-    _topLevelScene :: Maybe Int
-  } deriving (Show,Eq,Generic)
+data TopLevel = TopLevel
+  { _topLevelImages :: (([ImagesElt]))
+  , _topLevelTextures :: (([TexturesElt]))
+  , _topLevelSamplers :: (([SamplersElt]))
+  , _topLevelMeshes :: [MeshesElt]
+  , _topLevelExtensionsUsed :: (([Text]))
+  , _topLevelMaterials :: (([MaterialsElt]))
+  , _topLevelAsset :: Asset
+  , _topLevelBuffers :: [BuffersElt]
+  , _topLevelExtensionsRequired :: (([Text]))
+  , _topLevelSkins :: (([SkinsElt]))
+  , _topLevelAccessors :: [AccessorsElt]
+  , _topLevelCameras :: (([CamerasElt]))
+  , _topLevelScenes :: [ScenesElt]
+  , _topLevelAnimations :: (([AnimationsElt]))
+  , _topLevelNodes :: [NodesElt]
+  , _topLevelBufferViews :: [BufferViewsElt]
+  , _topLevelScene :: Maybe Int
+  } deriving (Show, Eq, Generic)
 
 
 instance FromJSON TopLevel where
   parseJSON (Object v) =
-    TopLevel <$> v .:?? "images" <*> v .:?? "textures" <*> v .:?? "samplers" <*>
+    TopLevel <$> (concat <$> (v .:?? "images")) <*>
+    (concat <$> v .:?? "textures") <*>
+    (concat <$> v .:?? "samplers") <*>
     v .: "meshes" <*>
-    v .:?? "extensionsUsed" <*>
-    v .:?? "materials" <*>
+    (concat <$> v .:?? "extensionsUsed") <*>
+    (concat <$> v .:?? "materials") <*>
     v .: "asset" <*>
     v .: "buffers" <*>
-    v .:?? "extensionsRequired" <*>
-    v .:?? "skins" <*>
+    (concat <$> v .:?? "extensionsRequired") <*>
+    (concat <$> v .:?? "skins") <*>
     v .: "accessors" <*>
-    v .:?? "cameras" <*>
+    (concat <$> v .:?? "cameras") <*>
     v .: "scenes" <*>
-    v .:?? "animations" <*>
+    (concat <$> v .:?? "animations") <*>
     v .: "nodes" <*>
     v .: "bufferViews" <*>
     v .:?? "scene"
@@ -1422,3 +1447,64 @@ mconcat <$> traverse
   , ''MagFilter
   , ''PrimitiveMode
   ]
+
+
+data DecodingException
+  = EmbeddedDecodingFailed Text
+  | ResourceNotFound FilePath
+  | UriTypeNotSupported Text
+  deriving (Show)
+
+
+resolveUri ::
+     (MonadThrow m, MonadIO m) => Path Abs Dir -> Text -> m B.ByteString
+resolveUri root t = do
+  uri <- URI.mkURI t
+  let mScheme = uri ^? uriScheme
+      suppPaths = ["application", "image"]
+      mpath = uri ^? uriPath
+      miD = 
+        fmap (\(v1:v2) -> ((v1 ^. unRText) `elem` suppPaths, v2)) mpath
+  iD <-
+    case miD of
+      Just (v, _imageType) -> pure v
+      Nothing ->
+        throwM . UriTypeNotSupported $ "neither scheme nor path present in URI!"
+  if not (isJust $ join mScheme)
+    then do
+      rfile <- parseRelFile $ T.unpack t
+      loadLocal (root </> rfile)
+    else if iD
+           then loadEmbedded t
+           else throwM . UriTypeNotSupported $ t
+
+chunkSize :: Int
+chunkSize = 16384 * 4
+
+
+loadLocal :: (MonadIO m, MonadThrow m) => Path Abs File -> m B.ByteString
+loadLocal spth = do
+  me <- liftIO $ doesFileExist pth
+  if me
+    then liftIO $ B.readFile pth
+    else throwM $ ResourceNotFound pth
+  where
+    pth = toFilePath spth
+
+
+
+instance Exception DecodingException
+
+loadEmbedded :: (MonadThrow m) => Text -> m B.ByteString
+loadEmbedded t =
+  case T.breakOnEnd ("base64," :: Text) t of -- FIXME: this is some slow-ass shit.
+    (_, st) ->
+      if "" /= st
+        then go st
+        else throwM $ EmbeddedDecodingFailed "Unexpected Uri!"
+  where
+    go st =
+      case unBase64 <$> convertText st of
+        Just bs -> pure bs
+        Nothing ->
+          throwM $ EmbeddedDecodingFailed "Could not convert value to Base64!"

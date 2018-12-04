@@ -32,7 +32,17 @@ library
                        , bytestring >= 0.10
                        , json-autotype
                        , unordered-containers
+                       , containers
                        , lens
+                       , directory
+                       , base64-bytestring
+                       , path
+                       , text-conversions
+                       , modern-uri > 0.2
+                       , exceptions
+                       , transformers >= 0.5
+                       , semigroups >= 0.18
+                       
   
                      
 
@@ -45,6 +55,7 @@ library
                        -fhide-source-paths
                        -Wmissing-export-lists
                        -Wpartial-fields
+                       -funbox-strict-fields 
 
   default-language:    Haskell2010
 
@@ -82,12 +93,15 @@ test-suite gltf-easytensor-test
 
   build-depends:       base ^>= 4.11.1.0
                      , gltf-easytensor
+                     , pathwalk
                      , QuickCheck   >= 2.9     && < 2.13
                      , tasty
                      , directory
                      , HUnit
                      , filepath
                      , tasty-hunit
+                     , lens
+                     , path
 
                      
 
@@ -114,6 +128,7 @@ benchmark gltf-easytensor-benchmark
   build-depends:       base ^>= 4.11.1.0
                      , gauge
                      , gltf-easytensor
+                     , pathwalk
                      
                      
                      

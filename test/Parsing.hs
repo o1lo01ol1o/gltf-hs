@@ -1,32 +1,57 @@
-{-# Language OverloadedStrings #-}
-
 {-# Language ScopedTypeVariables #-}
 module Parsing where
-import Control.Monad (filterM, forM_, forM, mapM)
-
-import System.Directory (listDirectory, doesFileExist)
-import System.FilePath (takeExtension)
-import GltfTypes (parse)
+import Control.Monad (forM)
+import Control.Lens ((^.), (^..), (^?), toListOf)
+import System.FilePath (joinPath)
+import System.Directory (canonicalizePath)
+import GltfTypes
+       (Uri(..), buffersEltUri, imagesEltUri, parse, resolveUri,
+        topLevelBuffers, topLevelImages, TopLevel)
 import Test.Tasty
+import Path (parseAbsDir, parent, parseAbsFile)
 import Test.Tasty.HUnit
-
+import System.Directory.PathWalk (pathWalkAccumulate)
 import Data.List
+
+rootDir = "../gltf-easytensor/glTF-Sample-Models/2.0/"
 
 getGfTLTests :: IO [FilePath]
 getGfTLTests = do
-  all <- listDirectory "./test/data/"
-  files <- filterM doesFileExist $ map ("./test/data/" <> )all
-  let gftls = files -- filter (\ v -> (\ f -> (".gltf" == f)) $ takeExtension v) files -- TODO: rename all the dumb cp artifacts
-  pure gftls
+  fgtls <-
+    pathWalkAccumulate rootDir $ \root _ files ->
+      forM files $ \file ->
+        if ".gltf" `isSuffixOf` file
+          then pure [joinPath [root, file]]
+          else pure mempty
+  pure $ mconcat fgtls
 
 
 
+parsingUnitTests ::  [FilePath] -> TestTree
 parsingUnitTests (fs :: [FilePath]) =
   let ts = fmap testCase fs
-      tests = fmap (\(t, fp) -> t $ go fp) $ zip ts fs
-  in testGroup "Parsing Unit tests" $ tests
+      tests = (\(t, fp) -> t $ go fp) <$> zip ts fs
+  in testGroup "Parsing Unit tests" tests
   where
     go fp = do
-      parse fp
+      _ <- parse fp
       pure ()
 
+uriUnitTests :: [FilePath] -> TestTree
+uriUnitTests fs =
+  let ts = fmap testCase fs
+      tests = (\(t, fp) -> t $ parse fp >>= go fp) <$> zip ts fs
+  in testGroup "Uri resolution Unit tests" tests
+  where
+    go fp (tl :: TopLevel) = do
+      cfp <-canonicalizePath fp
+      pthRoot <- parseAbsFile cfp
+      bffs <-
+        mapM
+          (resolveUri (parent pthRoot) . unUri)
+          (tl ^.. topLevelBuffers . traverse . buffersEltUri)
+      imgs <-
+        mapM
+          (resolveUri (parent pthRoot) . unUri)
+          (tl ^.. topLevelImages . traverse . imagesEltUri)
+      pure ()
