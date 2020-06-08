@@ -1,10 +1,10 @@
 cabal-version:       2.0
-name:                gltf-easytensor
+name:                gltf-hs
 version:             0.0.0
 synopsis:            See README for more info
 description:         See README for more info
-homepage:            https://github.com/o1lo01ol1o/gltf-easytensor
-bug-reports:         https://github.com/o1lo01ol1o/gltf-easytensor/issues
+homepage:            https://github.com/o1lo01ol1o/gltf-hs
+bug-reports:         https://github.com/o1lo01ol1o/gltf-hs/issues
 license:             MIT
 license-file:        LICENSE
 author:              Tim Pierson
@@ -14,23 +14,24 @@ category:            Utility
 build-type:          Simple
 extra-doc-files:     README.md
                    , CHANGELOG.md
-tested-with:         GHC == 8.4.4
+tested-with:         GHC == 8.6.5
 
 source-repository head
   type:                git
-  location:            https://github.com/o1lo01ol1o/gltf-easytensor.git
+  location:            https://github.com/o1lo01ol1o/gltf-hs.git
 
 library
   hs-source-dirs:      src
-  exposed-modules:     GltfEasytensor, GltfTypes
+  exposed-modules:     Data.Codec.Gltf
                        
 
-  build-depends:       base ^>= 4.11.1.0
+  build-depends:       base >= 4.11.1.0
                        , aeson
                        , text
                        , scientific >= 0.3
                        , bytestring >= 0.10
                        , json-autotype
+                       , json-alt
                        , unordered-containers
                        , containers
                        , lens
@@ -59,42 +60,17 @@ library
 
   default-language:    Haskell2010
 
-executable gltf-easytensor
-  hs-source-dirs:      app
-  main-is:             Main.hs
-  
-
-  build-depends:       base ^>= 4.11.1.0
-                     , gltf-easytensor
-                     
-                     
-
-  ghc-options:         -Wall
-                       -threaded
-                       -rtsopts
-                       -with-rtsopts=-N
-                       -Wincomplete-uni-patterns
-                       -Wincomplete-record-updates
-                       -Wcompat
-                       -Widentities
-                       -Wredundant-constraints
-                       -fhide-source-paths
-                       -Wmissing-export-lists
-                       -Wpartial-fields
-
-  default-language:    Haskell2010
-
-test-suite gltf-easytensor-test
+test-suite gltf-hs-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
 
   main-is:             Spec.hs
   other-modules:       Parsing
 
-  build-depends:       base ^>= 4.11.1.0
-                     , gltf-easytensor
+  build-depends:       base >= 4.11.1.0
+                     , gltf-hs
                      , pathwalk
-                     , QuickCheck   >= 2.9     && < 2.13
+                     , QuickCheck   >= 2.9 
                      , tasty
                      , directory
                      , HUnit
@@ -120,14 +96,14 @@ test-suite gltf-easytensor-test
 
   default-language:    Haskell2010
 
-benchmark gltf-easytensor-benchmark
+benchmark gltf-hs-benchmark
   type:                exitcode-stdio-1.0
   hs-source-dirs:      benchmark
   main-is:             Main.hs
 
   build-depends:       base ^>= 4.11.1.0
                      , gauge
-                     , gltf-easytensor
+                     , gltf-hs
                      , pathwalk
                      
                      

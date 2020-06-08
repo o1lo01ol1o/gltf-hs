@@ -4,7 +4,7 @@ import Control.Monad (forM)
 import Control.Lens ((^.), (^..), (^?), toListOf)
 import System.FilePath (joinPath)
 import System.Directory (canonicalizePath)
-import GltfTypes
+import Data.Codec.Gltf
        (Uri(..), buffersEltUri, imagesEltUri, parse, resolveUri,
         topLevelBuffers, topLevelImages, TopLevel)
 import Test.Tasty
@@ -13,7 +13,7 @@ import Test.Tasty.HUnit
 import System.Directory.PathWalk (pathWalkAccumulate)
 import Data.List
 
-rootDir = "../gltf-easytensor/glTF-Sample-Models/2.0/"
+rootDir = "../gltf-hs/glTF-Sample-Models/2.0/"
 
 getGfTLTests :: IO [FilePath]
 getGfTLTests = do

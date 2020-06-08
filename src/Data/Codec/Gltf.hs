@@ -1,12 +1,13 @@
 {-# LANGUAGE TemplateHaskell     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE TypeOperators       #-}
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE LambdaCase       #-}
-module GltfTypes where
+module Data.Codec.Gltf where
 
 import           System.Exit                    ( exitFailure
                                                 )
@@ -69,7 +70,7 @@ data Attributes = Attributes {
     _attributesTEXCOORD0 :: Maybe Int,
     _attributesTANGENT :: Maybe Int,
     _attributesPOSITION :: Maybe Int
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON Attributes where
@@ -115,7 +116,7 @@ instance ToJSON Attributes where
 data KHRDracoMeshCompression = KHRDracoMeshCompression {
     _kHRDracoMeshCompressionBufferView :: Int,
     _kHRDracoMeshCompressionAttributes :: Attributes
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON KHRDracoMeshCompression where
@@ -130,7 +131,7 @@ instance ToJSON KHRDracoMeshCompression where
 
 data TextureInfo = TextureInfo {
     _textureInfoIndex :: Double
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON TextureInfo where
@@ -149,7 +150,7 @@ data KHRMaterialsPbrSpecularGlossiness = KHRMaterialsPbrSpecularGlossiness {
     _kHRMaterialsPbrSpecularGlossinessDiffuseFactor :: (Maybe ([Double])), -- number[4]
     _kHRMaterialsPbrSpecularGlossinessSpecularGlossinessTexture :: Maybe TextureInfo,
     _kHRMaterialsPbrSpecularGlossinessTextureInfo :: (Maybe (TextureInfo))
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON KHRMaterialsPbrSpecularGlossiness where
@@ -190,7 +191,7 @@ data KHRTextureTransform = KHRTextureTransform {
     _kHRTextureTransformOffset :: (Maybe ([Double])), -- array[2]
     _kHRTextureTransformScale :: (Maybe ([Double])) -- array[2]
     -- FIXME: missing texCoord
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON KHRTextureTransform where
@@ -212,13 +213,13 @@ instance ToJSON KHRTextureTransform where
        "scale" .=
        _kHRTextureTransformScale)
 
-newtype Uri = Uri {unUri :: Text} deriving (Show, Eq, Ord, Read, Generic)
+newtype Uri = Uri {unUri :: Text} deriving (Show,Ord, Eq, Read, Generic)
 
 data ImagesElt = ImagesElt {
     _imagesEltUri :: Uri,
     _imagesEltMimeType :: Maybe Text,
     _imagesEltName :: Maybe Text
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON ImagesElt where
@@ -244,7 +245,7 @@ data TexturesElt = TexturesElt {
     _texturesEltSampler :: Maybe Int,
     _texturesEltName :: Maybe Text,
     _texturesEltSource :: Int
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON TexturesElt where
@@ -269,7 +270,7 @@ data Interpolation
   | Interpolation_LINEAR
   | Interpolation_CUBICSPLINE
   | Interpolation_Unknown Text
-  deriving (Show, Read, Ord, Eq, Generic)
+  deriving (Show, Ord, Read, Eq, Generic)
 
 instance FromJSON Interpolation where
   parseJSON (String t) = fromString t
@@ -291,7 +292,7 @@ data MinFilter
   | MinFilter_LINEAR_MIPMAP_NEAREST
   | MinFilter_NEAREST_MIPMAP_LINEAR
   | MinFilter_LINEAR_MIPMAP_LINEAR
-  deriving (Show, Read, Ord, Eq, Generic)
+  deriving (Show,Ord, Read, Bounded, Eq, Generic)
 
 minFilterToEnum =
   \case
@@ -314,7 +315,7 @@ enumToMinFilter =
 data MagFilter
   = MagFilter_NEAREST
   | MagFilter_LINEAR
-  deriving (Show, Read, Ord, Eq, Generic)
+  deriving (Show,Ord, Read, Bounded, Eq, Generic)
 
 enumToMagFilter = \case
   9728 -> MagFilter_NEAREST
@@ -365,7 +366,7 @@ data SamplersElt = SamplersElt
   , _samplersEltInput :: Maybe Int
   , _samplersEltName :: Maybe Text
   , _samplersEltOutput :: Maybe Int
-  } deriving (Show, Eq, Generic)
+  } deriving (Show,Ord, Eq, Generic)
 
 
 instance FromJSON SamplersElt where
@@ -414,7 +415,7 @@ data Extensions = Extensions
   { _extensionsKHRTextureTransform :: Maybe KHRTextureTransform
   , _extensionsKHRDracoMeshCompression ::Maybe KHRDracoMeshCompression
   , _extensionsKHRMaterialsPbrSpecularGlossiness :: Maybe KHRMaterialsPbrSpecularGlossiness
-  } deriving (Show, Eq, Generic)
+  } deriving (Show,Ord, Eq, Generic)
 
 
 instance FromJSON Extensions where
@@ -446,7 +447,7 @@ data TargetsElt = TargetsElt
   { _targetsEltNORMAL :: Maybe Int
   , _targetsEltTANGENT :: Maybe Int
   , _targetsEltPOSITION :: Int
-  } deriving (Show, Eq, Generic)
+  } deriving (Show,Ord, Eq, Generic)
 
 
 instance FromJSON TargetsElt where
@@ -468,7 +469,7 @@ data PrimitiveMode =
   | PrimitiveMode_TRIANGLES
   | PrimitiveMode_TRIANGLE_STRIP
   | PrimitiveMode_TRIANGLE_FAN
-  deriving (Show, Eq, Generic, Enum, Bounded)
+  deriving (Show,Ord, Eq, Generic, Enum, Bounded)
 
 instance FromJSON PrimitiveMode where
   parseJSON (Number n) = toInt n
@@ -488,7 +489,7 @@ data PrimitivesElt = PrimitivesElt {
     _primitivesEltIndices :: Maybe Int64,
     _primitivesEltAttributes :: Attributes,
     _primitivesEltTargets :: Maybe [TargetsElt]
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON PrimitivesElt where
@@ -528,7 +529,7 @@ data MeshesElt = MeshesElt {
     _meshesEltName :: Maybe Text,
     _meshesEltPrimitives :: [PrimitivesElt],
     _meshesEltWeights :: Maybe [Double]
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON MeshesElt where
@@ -553,7 +554,7 @@ instance FromJSON MeshesElt where
 data EmissiveTexture = EmissiveTexture {
     _emissiveTextureTexCoord :: Maybe Int,
     _emissiveTextureIndex :: Int
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON EmissiveTexture where
@@ -574,7 +575,7 @@ data BaseColorTexture = BaseColorTexture {
     _baseColorTextureExtensions :: Maybe Extensions,
     _baseColorTextureTexCoord :: Maybe Int,
     _baseColorTextureIndex :: Int
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON BaseColorTexture where
@@ -605,7 +606,7 @@ data PbrMetallicRoughness = PbrMetallicRoughness
   , _pbrMetallicRoughnessBaseColorTexture :: Maybe BaseColorTexture
   , _pbrMetallicRoughnessBaseColorFactor :: (Maybe ([Double])) -- ^ array[4]
   , _pbrMetallicRoughnessRoughnessFactor :: Maybe Double
-  } deriving (Show, Eq, Generic)
+  } deriving (Show,Ord, Eq, Generic)
 
 
 instance FromJSON PbrMetallicRoughness where
@@ -644,7 +645,7 @@ instance ToJSON PbrMetallicRoughness where
 data NormalTexture = NormalTexture {
     _normalTextureScale :: Maybe Double,
     _normalTextureIndex :: Int
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON NormalTexture where
@@ -668,7 +669,7 @@ data MaterialsElt = MaterialsElt
   , _materialsEltNormalTexture :: Maybe NormalTexture
   , _materialsEltName :: Maybe Text
   , _materialsEltAlphaMode :: Maybe Text
-  } deriving (Show, Eq, Generic)
+  } deriving (Show,Ord, Eq, Generic)
 
 
 instance FromJSON MaterialsElt where
@@ -725,7 +726,7 @@ data Extras = Extras {
     _extrasAuthor :: Text,
     _extrasTitle :: Text,
     _extrasLicense :: Text
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON Extras where
@@ -752,7 +753,7 @@ data Asset = Asset {
     _assetVersion :: Text,
     _assetGenerator :: Maybe Text,
     _assetExtras :: Maybe Extras
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON Asset where
@@ -780,7 +781,7 @@ data BuffersElt = BuffersElt {
     _buffersEltUri :: Uri,
     _buffersEltName :: Maybe Text,
     _buffersEltByteLength :: Double
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON BuffersElt where
@@ -806,7 +807,7 @@ data SkinsElt = SkinsElt {
     _skinsEltSkeleton :: Double,
     _skinsEltName :: Text,
     _skinsEltInverseBindMatrices :: Double
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON SkinsElt where
@@ -835,7 +836,7 @@ instance ToJSON SkinsElt where
 data Values = Values {
     _valuesByteOffset :: Int,
     _valuesBufferView :: Int
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON Values where
@@ -852,7 +853,7 @@ data Indices = Indices {
     _indicesByteOffset :: Int,
     _indicesBufferView :: Int,
     _indicesComponentType :: ComponentType
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON Indices where
@@ -878,7 +879,7 @@ data Sparse = Sparse {
     _sparseValues :: Values,
     _sparseCount :: Int,
     _sparseIndices :: Indices
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON Sparse where
@@ -905,7 +906,7 @@ data ComponentType =
   | ComponentType_UNSIGNED_SHORT
   | ComponentType_UNSIGNED_INT
   | ComponentType_FLOAT
-  deriving (Show, Eq, Generic, Ord)
+  deriving (Show,Ord, Eq, Bounded, Enum, Generic)
 
 compenentTypeFromInt = \case
   5120 -> ComponentType_BYTE
@@ -914,7 +915,7 @@ compenentTypeFromInt = \case
   5123 -> ComponentType_UNSIGNED_SHORT
   5125 -> ComponentType_UNSIGNED_INT
   5126 -> ComponentType_FLOAT
-  --FIXME: missing case should throw
+  i -> error $ "gltf-hs: compenentTypeFromInt: " <> show i <> " not in expected range " <> show (fmap compenentTypeToInt [minBound .. maxBound])
 
 compenentTypeToInt = \case
   ComponentType_BYTE -> 5120
@@ -945,7 +946,7 @@ data Component
   | Component_MAT2
   | Component_MAT3
   | Component_MAT4
-  deriving (Show,Eq,Generic)
+  deriving (Show,Ord,Eq,Generic)
 
 nComponents = \case
   Component_SCALAR -> 1
@@ -980,7 +981,7 @@ data AccessorsElt = AccessorsElt {
     _accessorsEltComponentType :: ComponentType,
     _accessorsEltMin :: (Maybe ([Double])),
     _accessorsEltType :: Component
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON AccessorsElt where
@@ -1034,7 +1035,7 @@ data Orthographic = Orthographic {
     _orthographicZnear :: Double,
     _orthographicXmag :: Double,
     _orthographicYmag :: Double
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON Orthographic where
@@ -1063,7 +1064,7 @@ data Perspective = Perspective {
     _perspectiveZnear :: Double,
     _perspectiveAspectRatio :: Maybe Double,
     _perspectiveYfov :: Double
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON Perspective where
@@ -1092,7 +1093,7 @@ data CamerasElt = CamerasElt
   , _camerasEltPerspective :: Maybe Perspective
   , _camerasEltName :: Maybe Text
   , _camerasEltType :: Text
-  } deriving (Show, Eq, Generic)
+  } deriving (Show,Ord, Eq, Generic)
 
 
 instance FromJSON CamerasElt where
@@ -1121,7 +1122,7 @@ instance ToJSON CamerasElt where
 data ScenesElt = ScenesElt {
     _scenesEltName :: Maybe Text,
     _scenesEltNodes :: [Double]
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON ScenesElt where
@@ -1139,7 +1140,7 @@ instance ToJSON ScenesElt where
 data Target = Target {
     _targetPath :: Text,
     _targetNode :: Int
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON Target where
@@ -1156,7 +1157,7 @@ instance ToJSON Target where
 data ChannelsElt = ChannelsElt {
     _channelsEltSampler :: Int,
     _channelsEltTarget :: Target
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON ChannelsElt where
@@ -1175,7 +1176,7 @@ data AnimationsElt = AnimationsElt
   { _animationsEltSamplers :: [SamplersElt]
   , _animationsEltChannels :: [ChannelsElt]
   , _animationsEltName :: Maybe Text
-  } deriving (Show, Eq, Generic)
+  } deriving (Show,Ord, Eq, Generic)
 
 
 instance FromJSON AnimationsElt where
@@ -1199,7 +1200,7 @@ data NodesElt = NodesElt {
     _nodesEltTranslation :: (Maybe ([Double])),
     _nodesEltMesh :: Maybe Int,
     _nodesEltCamera :: Maybe Int
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON NodesElt where
@@ -1252,7 +1253,7 @@ data BufferViewsElt = BufferViewsElt {
     _bufferViewsEltBuffer :: Int,
     _bufferViewsEltByteLength :: Int,
     _bufferViewsEltTarget :: Maybe Int
-  } deriving (Show,Eq,Generic)
+  } deriving (Show,Ord,Eq,Generic)
 
 
 instance FromJSON BufferViewsElt where
@@ -1301,7 +1302,7 @@ data TopLevel = TopLevel
   , _topLevelNodes :: [NodesElt]
   , _topLevelBufferViews :: [BufferViewsElt]
   , _topLevelScene :: Maybe Int
-  } deriving (Show, Eq, Generic)
+  } deriving (Show,Ord, Eq, Generic)
 
 
 instance FromJSON TopLevel where
@@ -1453,7 +1454,7 @@ data DecodingException
   = EmbeddedDecodingFailed Text
   | ResourceNotFound FilePath
   | UriTypeNotSupported Text
-  deriving (Show)
+  deriving (Show, Eq, Ord, Generic, Exception)
 
 
 resolveUri ::
@@ -1493,7 +1494,6 @@ loadLocal spth = do
 
 
 
-instance Exception DecodingException
 
 loadEmbedded :: (MonadThrow m) => Text -> m B.ByteString
 loadEmbedded t =
