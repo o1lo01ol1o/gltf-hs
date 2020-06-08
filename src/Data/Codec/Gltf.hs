@@ -1,76 +1,60 @@
-{-# LANGUAGE TemplateHaskell     #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE RecordWildCards     #-}
-{-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE DeriveAnyClass      #-}
 {-# LANGUAGE DeriveGeneric       #-}
-{-# LANGUAGE LambdaCase       #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
+{-# LANGUAGE TypeOperators       #-}
 module Data.Codec.Gltf where
 
-import           System.Exit                    ( exitFailure
-                                                )
-import           System.IO                      ( stderr
-                                                , hPutStrLn
-                                                )
-import Data.Aeson.Types                          ( Parser )
-import qualified Data.ByteString.Lazy.Char8    as BSL hiding (stripPrefix)
-import qualified Data.ByteString.Base64 as BS64
-import Control.Monad.IO.Class (MonadIO(..))
-import Data.Foldable (concat)
-import Data.Text.Encoding (encodeUtf8)
-import qualified Data.Text as T
-import Control.Exception.Base (IOException(..), Exception(..))
-import GHC.IO.Exception (IOError(..))
-import Control.Monad.Catch (MonadThrow, throwM)
-import System.Directory (doesFileExist)
-import           Control.Monad                  ( mzero
-                                                , join
-                                                )
-import Path (Rel, Abs, File, Dir, Path, toFilePath, parseRelFile, (</>))
-import Data.Scientific (isInteger, toBoundedInteger)
 import           Control.Applicative
-import           Data.Aeson.AutoType.Alternative
-import           Data.Aeson                     ( decode
-                                                , Value(..)
-                                                , FromJSON(..)
-                                                , ToJSON(..)
-                                                , pairs
-                                                , (.:)
-                                                , (.:?)
-                                                , (.=)
-                                                , object
-                                                )
-import Data.Coerce
-import Data.Maybe (isJust, fromJust)
-import System.IO (openFile, IOMode(..))
-import qualified Data.ByteString as B hiding (stripPrefix)
-import Data.Text.Conversions (convertText, Base64(..), fromText)
-import Data.Int (Int64)
-import           Data.Text                      ( Text, isPrefixOf, stripPrefix )
-import Control.Lens.TH (makeLenses, makePrisms)
-import Control.Lens ((^.), (&), (^?))
-import qualified Data.List.NonEmpty as NE
-import qualified Text.URI as URI
-import Text.URI (URI)
-import Text.URI.Lens
+import           Control.DeepSeq            (NFData)
+import           Control.Exception.Base     (Exception (..))
+import           Control.Lens               ((^.), (^?))
+import           Control.Lens.TH            (makeLenses, makePrisms)
+import           Control.Monad              (join, mzero)
+import           Control.Monad.Catch        (MonadThrow, throwM)
+import           Control.Monad.IO.Class     (MonadIO (..))
+import           Data.Aeson                 (FromJSON (..), ToJSON (..),
+                                             Value (..), decode, object, pairs,
+                                             (.:), (.:?), (.=))
+import           Data.Aeson.Types           (Object, Parser)
+import qualified Data.ByteString            as B hiding (stripPrefix)
+import qualified Data.ByteString.Lazy.Char8 as BSL hiding (stripPrefix)
+import           Data.Foldable              (concat)
+import           Data.Int                   (Int64)
+import           Data.Maybe                 (isJust)
+import           Data.Scientific            (isInteger, toBoundedInteger)
+import           Data.Text                  (Text)
+import qualified Data.Text                  as T
+import           Data.Text.Conversions      (Base64 (..), convertText)
 import           GHC.Generics
+import           Path                       (Abs, Dir, File, Path, parseRelFile,
+                                             toFilePath, (</>))
+import           System.Directory           (doesFileExist)
+import           System.Exit                (exitFailure)
+import qualified Text.URI                   as URI
+import           Text.URI.Lens
 
 -- | Workaround for https://github.com/bos/aeson/issues/287.
+(.:??) :: FromJSON a =>
+            Object
+            -> Text -> Parser (Maybe a)
 o .:?? val = fmap join (o .:? val)
 
 
 data Attributes = Attributes {
-    _attributesCOLOR0 ::  Maybe Int,
-    _attributesJOINTS0 :: Maybe Int,
-    _attributesNORMAL :: Maybe Int,
-    _attributesWEIGHTS0 :: Maybe Int,
+    _attributesCOLOR0    ::  Maybe Int,
+    _attributesJOINTS0   :: Maybe Int,
+    _attributesNORMAL    :: Maybe Int,
+    _attributesWEIGHTS0  :: Maybe Int,
     _attributesTEXCOORD1 :: Maybe Int,
     _attributesTEXCOORD0 :: Maybe Int,
-    _attributesTANGENT :: Maybe Int,
-    _attributesPOSITION :: Maybe Int
-  } deriving (Show,Ord,Eq,Generic)
+    _attributesTANGENT   :: Maybe Int,
+    _attributesPOSITION  :: Maybe Int
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON Attributes where
@@ -116,7 +100,7 @@ instance ToJSON Attributes where
 data KHRDracoMeshCompression = KHRDracoMeshCompression {
     _kHRDracoMeshCompressionBufferView :: Int,
     _kHRDracoMeshCompressionAttributes :: Attributes
-  } deriving (Show,Ord,Eq,Generic)
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON KHRDracoMeshCompression where
@@ -131,7 +115,7 @@ instance ToJSON KHRDracoMeshCompression where
 
 data TextureInfo = TextureInfo {
     _textureInfoIndex :: Double
-  } deriving (Show,Ord,Eq,Generic)
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON TextureInfo where
@@ -150,7 +134,7 @@ data KHRMaterialsPbrSpecularGlossiness = KHRMaterialsPbrSpecularGlossiness {
     _kHRMaterialsPbrSpecularGlossinessDiffuseFactor :: (Maybe ([Double])), -- number[4]
     _kHRMaterialsPbrSpecularGlossinessSpecularGlossinessTexture :: Maybe TextureInfo,
     _kHRMaterialsPbrSpecularGlossinessTextureInfo :: (Maybe (TextureInfo))
-  } deriving (Show,Ord,Eq,Generic)
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON KHRMaterialsPbrSpecularGlossiness where
@@ -188,10 +172,10 @@ instance ToJSON KHRMaterialsPbrSpecularGlossiness where
 
 data KHRTextureTransform = KHRTextureTransform {
     _kHRTextureTransformRotation :: (Maybe Double),
-    _kHRTextureTransformOffset :: (Maybe ([Double])), -- array[2]
-    _kHRTextureTransformScale :: (Maybe ([Double])) -- array[2]
+    _kHRTextureTransformOffset   :: (Maybe ([Double])), -- array[2]
+    _kHRTextureTransformScale    :: (Maybe ([Double])) -- array[2]
     -- FIXME: missing texCoord
-  } deriving (Show,Ord,Eq,Generic)
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON KHRTextureTransform where
@@ -213,13 +197,13 @@ instance ToJSON KHRTextureTransform where
        "scale" .=
        _kHRTextureTransformScale)
 
-newtype Uri = Uri {unUri :: Text} deriving (Show,Ord, Eq, Read, Generic)
+newtype Uri = Uri {unUri :: Text} deriving (Show,NFData,Ord, Eq, Read, Generic)
 
 data ImagesElt = ImagesElt {
-    _imagesEltUri :: Uri,
+    _imagesEltUri      :: Uri,
     _imagesEltMimeType :: Maybe Text,
-    _imagesEltName :: Maybe Text
-  } deriving (Show,Ord,Eq,Generic)
+    _imagesEltName     :: Maybe Text
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON ImagesElt where
@@ -243,9 +227,9 @@ instance ToJSON ImagesElt where
 
 data TexturesElt = TexturesElt {
     _texturesEltSampler :: Maybe Int,
-    _texturesEltName :: Maybe Text,
-    _texturesEltSource :: Int
-  } deriving (Show,Ord,Eq,Generic)
+    _texturesEltName    :: Maybe Text,
+    _texturesEltSource  :: Int
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON TexturesElt where
@@ -270,16 +254,16 @@ data Interpolation
   | Interpolation_LINEAR
   | Interpolation_CUBICSPLINE
   | Interpolation_Unknown Text
-  deriving (Show, Ord, Read, Eq, Generic)
+  deriving (Show,NFData, Ord, Read, Eq, Generic)
 
 instance FromJSON Interpolation where
   parseJSON (String t) = fromString t
     where
       fromString :: Text -> Parser Interpolation
-      fromString "STEP" = pure Interpolation_STEP
-      fromString "LINEAR"  = pure Interpolation_LINEAR
-      fromString "CUBICSPLINE"  = pure Interpolation_CUBICSPLINE
-      fromString o     = pure $ Interpolation_Unknown o
+      fromString "STEP"        = pure Interpolation_STEP
+      fromString "LINEAR"      = pure Interpolation_LINEAR
+      fromString "CUBICSPLINE" = pure Interpolation_CUBICSPLINE
+      fromString o             = pure $ Interpolation_Unknown o
 -- TODO: ToJSON
 
 instance ToJSON Interpolation where
@@ -292,8 +276,9 @@ data MinFilter
   | MinFilter_LINEAR_MIPMAP_NEAREST
   | MinFilter_NEAREST_MIPMAP_LINEAR
   | MinFilter_LINEAR_MIPMAP_LINEAR
-  deriving (Show,Ord, Read, Bounded, Eq, Generic)
+  deriving (Show,NFData,Ord, Read, Bounded, Eq, Generic)
 
+minFilterToEnum :: MinFilter -> Int
 minFilterToEnum =
   \case
     MinFilter_NEAREST -> 9728
@@ -303,6 +288,7 @@ minFilterToEnum =
     MinFilter_NEAREST_MIPMAP_LINEAR -> 9986
     MinFilter_LINEAR_MIPMAP_LINEAR -> 9987
 
+enumToMinFilter :: Int -> MinFilter
 enumToMinFilter =
   \case
     9728 -> MinFilter_NEAREST
@@ -311,16 +297,20 @@ enumToMinFilter =
     9985 -> MinFilter_LINEAR_MIPMAP_NEAREST
     9986 -> MinFilter_NEAREST_MIPMAP_LINEAR
     9987 -> MinFilter_LINEAR_MIPMAP_LINEAR
+    i -> error $ "gltf-hs: enumToMinFilter: " <> show i <> " not in expected range " <> show (fmap minFilterToEnum [minBound .. maxBound])
 
 data MagFilter
   = MagFilter_NEAREST
   | MagFilter_LINEAR
-  deriving (Show,Ord, Read, Bounded, Eq, Generic)
+  deriving (Show,NFData,Ord, Read, Bounded, Eq, Generic)
 
+enumToMagFilter :: Int -> MagFilter
 enumToMagFilter = \case
   9728 -> MagFilter_NEAREST
   9729 -> MagFilter_LINEAR
+  i -> error $ "gltf-hs: enumToMagFilter: " <> show i <> " not in expected range " <> show (fmap magFilterToEnum [minBound .. maxBound])
 
+magFilterToEnum :: MagFilter -> Int
 magFilterToEnum = \case
   MagFilter_NEAREST -> 9728
   MagFilter_LINEAR -> 9729
@@ -332,14 +322,14 @@ instance Enum MagFilter where
 instance Enum MinFilter where
   fromEnum = minFilterToEnum
   toEnum = enumToMinFilter
-  
+
 instance FromJSON MagFilter where
   parseJSON (Number n) = toInt n
     where
-      toInt n =
-        if isInteger n
-          then case toBoundedInteger n of
-                 Just s -> pure $ toEnum s
+      toInt n' =
+        if isInteger n'
+          then case toBoundedInteger n' of
+                 Just s  -> pure $ toEnum s
                  Nothing -> empty
           else empty
   parseJSON _ = empty
@@ -347,10 +337,10 @@ instance FromJSON MagFilter where
 instance FromJSON MinFilter where
   parseJSON (Number n) = toInt n
     where
-      toInt n =
-        if isInteger n
-          then case toBoundedInteger n of
-                 Just s -> pure $ toEnum s
+      toInt n' =
+        if isInteger n'
+          then case toBoundedInteger n' of
+                 Just s  -> pure $ toEnum s
                  Nothing -> empty
           else empty
   parseJSON _ = empty
@@ -358,15 +348,15 @@ instance FromJSON MinFilter where
 -- FIXME: ToJSON instances
 
 data SamplersElt = SamplersElt
-  { _samplersEltWrapS :: Maybe Int
+  { _samplersEltWrapS         :: Maybe Int
   , _samplersEltInterpolation :: Maybe Interpolation
-  , _samplersEltMinFilter :: Maybe MinFilter
-  , _samplersEltWrapT :: Maybe Int
-  , _samplersEltMagFilter :: Maybe MagFilter
-  , _samplersEltInput :: Maybe Int
-  , _samplersEltName :: Maybe Text
-  , _samplersEltOutput :: Maybe Int
-  } deriving (Show,Ord, Eq, Generic)
+  , _samplersEltMinFilter     :: Maybe MinFilter
+  , _samplersEltWrapT         :: Maybe Int
+  , _samplersEltMagFilter     :: Maybe MagFilter
+  , _samplersEltInput         :: Maybe Int
+  , _samplersEltName          :: Maybe Text
+  , _samplersEltOutput        :: Maybe Int
+  } deriving (Show,NFData,Ord, Eq, Generic)
 
 
 instance FromJSON SamplersElt where
@@ -415,7 +405,7 @@ data Extensions = Extensions
   { _extensionsKHRTextureTransform :: Maybe KHRTextureTransform
   , _extensionsKHRDracoMeshCompression ::Maybe KHRDracoMeshCompression
   , _extensionsKHRMaterialsPbrSpecularGlossiness :: Maybe KHRMaterialsPbrSpecularGlossiness
-  } deriving (Show,Ord, Eq, Generic)
+  } deriving (Show,NFData,Ord, Eq, Generic)
 
 
 instance FromJSON Extensions where
@@ -444,10 +434,10 @@ instance ToJSON Extensions where
 
 
 data TargetsElt = TargetsElt
-  { _targetsEltNORMAL :: Maybe Int
-  , _targetsEltTANGENT :: Maybe Int
+  { _targetsEltNORMAL   :: Maybe Int
+  , _targetsEltTANGENT  :: Maybe Int
   , _targetsEltPOSITION :: Int
-  } deriving (Show,Ord, Eq, Generic)
+  } deriving (Show,NFData,Ord, Eq, Generic)
 
 
 instance FromJSON TargetsElt where
@@ -469,7 +459,7 @@ data PrimitiveMode =
   | PrimitiveMode_TRIANGLES
   | PrimitiveMode_TRIANGLE_STRIP
   | PrimitiveMode_TRIANGLE_FAN
-  deriving (Show,Ord, Eq, Generic, Enum, Bounded)
+  deriving (Show,NFData,Ord, Eq, Generic, Enum, Bounded)
 
 instance FromJSON PrimitiveMode where
   parseJSON (Number n) = toInt n
@@ -477,19 +467,19 @@ instance FromJSON PrimitiveMode where
       toInt n =
         if isInteger n
           then case toBoundedInteger n of
-                 Just s -> pure $ toEnum s
+                 Just s  -> pure $ toEnum s
                  Nothing -> empty
           else empty
   parseJSON _ = empty
 
 data PrimitivesElt = PrimitivesElt {
     _primitivesEltExtensions :: Maybe Extensions,
-    _primitivesEltMode :: Maybe PrimitiveMode,
-    _primitivesEltMaterial :: Maybe Int,
-    _primitivesEltIndices :: Maybe Int64,
+    _primitivesEltMode       :: Maybe PrimitiveMode,
+    _primitivesEltMaterial   :: Maybe Int,
+    _primitivesEltIndices    :: Maybe Int64,
     _primitivesEltAttributes :: Attributes,
-    _primitivesEltTargets :: Maybe [TargetsElt]
-  } deriving (Show,Ord,Eq,Generic)
+    _primitivesEltTargets    :: Maybe [TargetsElt]
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON PrimitivesElt where
@@ -526,10 +516,10 @@ instance FromJSON PrimitivesElt where
 
 
 data MeshesElt = MeshesElt {
-    _meshesEltName :: Maybe Text,
+    _meshesEltName       :: Maybe Text,
     _meshesEltPrimitives :: [PrimitivesElt],
-    _meshesEltWeights :: Maybe [Double]
-  } deriving (Show,Ord,Eq,Generic)
+    _meshesEltWeights    :: Maybe [Double]
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON MeshesElt where
@@ -553,8 +543,8 @@ instance FromJSON MeshesElt where
 
 data EmissiveTexture = EmissiveTexture {
     _emissiveTextureTexCoord :: Maybe Int,
-    _emissiveTextureIndex :: Int
-  } deriving (Show,Ord,Eq,Generic)
+    _emissiveTextureIndex    :: Int
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON EmissiveTexture where
@@ -573,9 +563,9 @@ instance ToJSON EmissiveTexture where
 
 data BaseColorTexture = BaseColorTexture {
     _baseColorTextureExtensions :: Maybe Extensions,
-    _baseColorTextureTexCoord :: Maybe Int,
-    _baseColorTextureIndex :: Int
-  } deriving (Show,Ord,Eq,Generic)
+    _baseColorTextureTexCoord   :: Maybe Int,
+    _baseColorTextureIndex      :: Int
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON BaseColorTexture where
@@ -601,12 +591,12 @@ instance ToJSON BaseColorTexture where
 
 
 data PbrMetallicRoughness = PbrMetallicRoughness
-  { _pbrMetallicRoughnessMetallicFactor :: Maybe Double
+  { _pbrMetallicRoughnessMetallicFactor           :: Maybe Double
   , _pbrMetallicRoughnessMetallicRoughnessTexture :: Maybe TextureInfo
-  , _pbrMetallicRoughnessBaseColorTexture :: Maybe BaseColorTexture
-  , _pbrMetallicRoughnessBaseColorFactor :: (Maybe ([Double])) -- ^ array[4]
-  , _pbrMetallicRoughnessRoughnessFactor :: Maybe Double
-  } deriving (Show,Ord, Eq, Generic)
+  , _pbrMetallicRoughnessBaseColorTexture         :: Maybe BaseColorTexture
+  , _pbrMetallicRoughnessBaseColorFactor          :: (Maybe ([Double])) -- ^ array[4]
+  , _pbrMetallicRoughnessRoughnessFactor          :: Maybe Double
+  } deriving (Show,NFData,Ord, Eq, Generic)
 
 
 instance FromJSON PbrMetallicRoughness where
@@ -645,7 +635,7 @@ instance ToJSON PbrMetallicRoughness where
 data NormalTexture = NormalTexture {
     _normalTextureScale :: Maybe Double,
     _normalTextureIndex :: Int
-  } deriving (Show,Ord,Eq,Generic)
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON NormalTexture where
@@ -659,17 +649,17 @@ instance ToJSON NormalTexture where
 
 
 data MaterialsElt = MaterialsElt
-  { _materialsEltEmissiveTexture :: Maybe EmissiveTexture
-  , _materialsEltOcclusionTexture :: Maybe TextureInfo
-  , _materialsEltExtensions :: Maybe Extensions
-  , _materialsEltDoubleSided :: Maybe Bool
+  { _materialsEltEmissiveTexture      :: Maybe EmissiveTexture
+  , _materialsEltOcclusionTexture     :: Maybe TextureInfo
+  , _materialsEltExtensions           :: Maybe Extensions
+  , _materialsEltDoubleSided          :: Maybe Bool
   , _materialsEltPbrMetallicRoughness :: Maybe PbrMetallicRoughness
-  , _materialsEltEmissiveFactor :: (Maybe ([Double]))
-  , _materialsEltAlphaCutoff :: Maybe Double
-  , _materialsEltNormalTexture :: Maybe NormalTexture
-  , _materialsEltName :: Maybe Text
-  , _materialsEltAlphaMode :: Maybe Text
-  } deriving (Show,Ord, Eq, Generic)
+  , _materialsEltEmissiveFactor       :: (Maybe ([Double]))
+  , _materialsEltAlphaCutoff          :: Maybe Double
+  , _materialsEltNormalTexture        :: Maybe NormalTexture
+  , _materialsEltName                 :: Maybe Text
+  , _materialsEltAlphaMode            :: Maybe Text
+  } deriving (Show,NFData,Ord, Eq, Generic)
 
 
 instance FromJSON MaterialsElt where
@@ -723,10 +713,10 @@ instance ToJSON MaterialsElt where
 
 
 data Extras = Extras {
-    _extrasAuthor :: Text,
-    _extrasTitle :: Text,
+    _extrasAuthor  :: Text,
+    _extrasTitle   :: Text,
     _extrasLicense :: Text
-  } deriving (Show,Ord,Eq,Generic)
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON Extras where
@@ -750,10 +740,10 @@ instance ToJSON Extras where
 
 data Asset = Asset {
     _assetCopyright :: Maybe Text,
-    _assetVersion :: Text,
+    _assetVersion   :: Text,
     _assetGenerator :: Maybe Text,
-    _assetExtras :: Maybe Extras
-  } deriving (Show,Ord,Eq,Generic)
+    _assetExtras    :: Maybe Extras
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON Asset where
@@ -778,10 +768,10 @@ instance ToJSON Asset where
 
 
 data BuffersElt = BuffersElt {
-    _buffersEltUri :: Uri,
-    _buffersEltName :: Maybe Text,
+    _buffersEltUri        :: Uri,
+    _buffersEltName       :: Maybe Text,
     _buffersEltByteLength :: Double
-  } deriving (Show,Ord,Eq,Generic)
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON BuffersElt where
@@ -803,11 +793,11 @@ instance ToJSON BuffersElt where
 
 
 data SkinsElt = SkinsElt {
-    _skinsEltJoints :: [Double],
-    _skinsEltSkeleton :: Double,
-    _skinsEltName :: Text,
+    _skinsEltJoints              :: [Double],
+    _skinsEltSkeleton            :: Double,
+    _skinsEltName                :: Text,
     _skinsEltInverseBindMatrices :: Double
-  } deriving (Show,Ord,Eq,Generic)
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON SkinsElt where
@@ -836,7 +826,7 @@ instance ToJSON SkinsElt where
 data Values = Values {
     _valuesByteOffset :: Int,
     _valuesBufferView :: Int
-  } deriving (Show,Ord,Eq,Generic)
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON Values where
@@ -850,10 +840,10 @@ instance ToJSON Values where
 
 
 data Indices = Indices {
-    _indicesByteOffset :: Int,
-    _indicesBufferView :: Int,
+    _indicesByteOffset    :: Int,
+    _indicesBufferView    :: Int,
     _indicesComponentType :: ComponentType
-  } deriving (Show,Ord,Eq,Generic)
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON Indices where
@@ -876,10 +866,10 @@ instance FromJSON Indices where
 
 
 data Sparse = Sparse {
-    _sparseValues :: Values,
-    _sparseCount :: Int,
+    _sparseValues  :: Values,
+    _sparseCount   :: Int,
     _sparseIndices :: Indices
-  } deriving (Show,Ord,Eq,Generic)
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON Sparse where
@@ -906,8 +896,9 @@ data ComponentType =
   | ComponentType_UNSIGNED_SHORT
   | ComponentType_UNSIGNED_INT
   | ComponentType_FLOAT
-  deriving (Show,Ord, Eq, Bounded, Enum, Generic)
+  deriving (Show,NFData,Ord, Eq, Bounded, Enum, Generic)
 
+compenentTypeFromInt :: Int -> ComponentType
 compenentTypeFromInt = \case
   5120 -> ComponentType_BYTE
   5121 -> ComponentType_UNSIGNED_BYTE
@@ -917,6 +908,7 @@ compenentTypeFromInt = \case
   5126 -> ComponentType_FLOAT
   i -> error $ "gltf-hs: compenentTypeFromInt: " <> show i <> " not in expected range " <> show (fmap compenentTypeToInt [minBound .. maxBound])
 
+compenentTypeToInt :: ComponentType -> Int
 compenentTypeToInt = \case
   ComponentType_BYTE -> 5120
   ComponentType_UNSIGNED_BYTE -> 5121
@@ -928,10 +920,10 @@ compenentTypeToInt = \case
 instance FromJSON ComponentType where
   parseJSON (Number n) = toInt n
     where
-      toInt n =
-        if isInteger n
-          then case (toBoundedInteger n :: Maybe Int) of
-                 Just s -> pure $ compenentTypeFromInt s
+      toInt n' =
+        if isInteger n'
+          then case (toBoundedInteger n' :: Maybe Int) of
+                 Just s  -> pure $ compenentTypeFromInt s
                  Nothing -> empty
           else empty
   parseJSON _ = empty
@@ -946,8 +938,9 @@ data Component
   | Component_MAT2
   | Component_MAT3
   | Component_MAT4
-  deriving (Show,Ord,Eq,Generic)
+  deriving (Show,NFData,Ord,Eq,Generic)
 
+nComponents :: Component -> Int
 nComponents = \case
   Component_SCALAR -> 1
   Component_VEC2 -> 2
@@ -961,27 +954,27 @@ instance FromJSON Component where
   parseJSON (String s) = fromString s
     where
       fromString "SCALAR" = pure Component_SCALAR
-      fromString "VEC2" = pure Component_VEC2
-      fromString "VEC3" = pure Component_VEC3
-      fromString "VEC4" = pure Component_VEC4
-      fromString "MAT2" = pure Component_MAT2
-      fromString "MAT3" = pure Component_MAT3
-      fromString "MAT4" = pure Component_MAT4
+      fromString "VEC2"   = pure Component_VEC2
+      fromString "VEC3"   = pure Component_VEC3
+      fromString "VEC4"   = pure Component_VEC4
+      fromString "MAT2"   = pure Component_MAT2
+      fromString "MAT3"   = pure Component_MAT3
+      fromString "MAT4"   = pure Component_MAT4
   parseJSON _ = empty
 
 -- FIXME: ToJson
 
 data AccessorsElt = AccessorsElt {
-    _accessorsEltMax :: (Maybe [Double]),
-    _accessorsEltByteOffset :: Maybe Int,
-    _accessorsEltBufferView :: (Maybe Int),
-    _accessorsEltCount :: Int,
-    _accessorsEltSparse :: Maybe Sparse,
-    _accessorsEltName :: Maybe Text,
+    _accessorsEltMax           :: (Maybe [Double]),
+    _accessorsEltByteOffset    :: Maybe Int,
+    _accessorsEltBufferView    :: (Maybe Int),
+    _accessorsEltCount         :: Int,
+    _accessorsEltSparse        :: Maybe Sparse,
+    _accessorsEltName          :: Maybe Text,
     _accessorsEltComponentType :: ComponentType,
-    _accessorsEltMin :: (Maybe ([Double])),
-    _accessorsEltType :: Component
-  } deriving (Show,Ord,Eq,Generic)
+    _accessorsEltMin           :: (Maybe ([Double])),
+    _accessorsEltType          :: Component
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON AccessorsElt where
@@ -1031,11 +1024,11 @@ instance FromJSON AccessorsElt where
 
 
 data Orthographic = Orthographic {
-    _orthographicZfar :: Double,
+    _orthographicZfar  :: Double,
     _orthographicZnear :: Double,
-    _orthographicXmag :: Double,
-    _orthographicYmag :: Double
-  } deriving (Show,Ord,Eq,Generic)
+    _orthographicXmag  :: Double,
+    _orthographicYmag  :: Double
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON Orthographic where
@@ -1060,11 +1053,11 @@ instance ToJSON Orthographic where
 
 
 data Perspective = Perspective {
-    _perspectiveZfar :: Double,
-    _perspectiveZnear :: Double,
+    _perspectiveZfar        :: Double,
+    _perspectiveZnear       :: Double,
     _perspectiveAspectRatio :: Maybe Double,
-    _perspectiveYfov :: Double
-  } deriving (Show,Ord,Eq,Generic)
+    _perspectiveYfov        :: Double
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON Perspective where
@@ -1090,10 +1083,10 @@ instance ToJSON Perspective where
 
 data CamerasElt = CamerasElt
   { _camerasEltOrthographic :: Maybe Orthographic
-  , _camerasEltPerspective :: Maybe Perspective
-  , _camerasEltName :: Maybe Text
-  , _camerasEltType :: Text
-  } deriving (Show,Ord, Eq, Generic)
+  , _camerasEltPerspective  :: Maybe Perspective
+  , _camerasEltName         :: Maybe Text
+  , _camerasEltType         :: Text
+  } deriving (Show,NFData,Ord, Eq, Generic)
 
 
 instance FromJSON CamerasElt where
@@ -1120,9 +1113,9 @@ instance ToJSON CamerasElt where
 
 
 data ScenesElt = ScenesElt {
-    _scenesEltName :: Maybe Text,
+    _scenesEltName  :: Maybe Text,
     _scenesEltNodes :: [Double]
-  } deriving (Show,Ord,Eq,Generic)
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON ScenesElt where
@@ -1140,7 +1133,7 @@ instance ToJSON ScenesElt where
 data Target = Target {
     _targetPath :: Text,
     _targetNode :: Int
-  } deriving (Show,Ord,Eq,Generic)
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON Target where
@@ -1156,8 +1149,8 @@ instance ToJSON Target where
 
 data ChannelsElt = ChannelsElt {
     _channelsEltSampler :: Int,
-    _channelsEltTarget :: Target
-  } deriving (Show,Ord,Eq,Generic)
+    _channelsEltTarget  :: Target
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON ChannelsElt where
@@ -1175,8 +1168,8 @@ instance ToJSON ChannelsElt where
 data AnimationsElt = AnimationsElt
   { _animationsEltSamplers :: [SamplersElt]
   , _animationsEltChannels :: [ChannelsElt]
-  , _animationsEltName :: Maybe Text
-  } deriving (Show,Ord, Eq, Generic)
+  , _animationsEltName     :: Maybe Text
+  } deriving (Show,NFData,Ord, Eq, Generic)
 
 
 instance FromJSON AnimationsElt where
@@ -1191,16 +1184,16 @@ instance FromJSON AnimationsElt where
 
 
 data NodesElt = NodesElt {
-    _nodesEltRotation :: (Maybe ([Double])),
-    _nodesEltScale :: (Maybe ([Double])),
-    _nodesEltChildren :: Maybe [Int],
-    _nodesEltMatrix :: (Maybe ([Double])),
-    _nodesEltSkin :: Maybe Int,
-    _nodesEltName :: Maybe Text,
+    _nodesEltRotation    :: (Maybe ([Double])),
+    _nodesEltScale       :: (Maybe ([Double])),
+    _nodesEltChildren    :: Maybe [Int],
+    _nodesEltMatrix      :: (Maybe ([Double])),
+    _nodesEltSkin        :: Maybe Int,
+    _nodesEltName        :: Maybe Text,
     _nodesEltTranslation :: (Maybe ([Double])),
-    _nodesEltMesh :: Maybe Int,
-    _nodesEltCamera :: Maybe Int
-  } deriving (Show,Ord,Eq,Generic)
+    _nodesEltMesh        :: Maybe Int,
+    _nodesEltCamera      :: Maybe Int
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON NodesElt where
@@ -1248,12 +1241,12 @@ instance ToJSON NodesElt where
 
 data BufferViewsElt = BufferViewsElt {
     _bufferViewsEltByteOffset :: Maybe Int,
-    _bufferViewsEltName :: (Maybe Text),
+    _bufferViewsEltName       :: (Maybe Text),
     _bufferViewsEltByteStride :: Maybe Int,
-    _bufferViewsEltBuffer :: Int,
+    _bufferViewsEltBuffer     :: Int,
     _bufferViewsEltByteLength :: Int,
-    _bufferViewsEltTarget :: Maybe Int
-  } deriving (Show,Ord,Eq,Generic)
+    _bufferViewsEltTarget     :: Maybe Int
+  } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON BufferViewsElt where
@@ -1285,24 +1278,24 @@ instance ToJSON BufferViewsElt where
 
 
 data TopLevel = TopLevel
-  { _topLevelImages :: (([ImagesElt]))
-  , _topLevelTextures :: (([TexturesElt]))
-  , _topLevelSamplers :: (([SamplersElt]))
-  , _topLevelMeshes :: [MeshesElt]
-  , _topLevelExtensionsUsed :: (([Text]))
-  , _topLevelMaterials :: (([MaterialsElt]))
-  , _topLevelAsset :: Asset
-  , _topLevelBuffers :: [BuffersElt]
+  { _topLevelImages             :: (([ImagesElt]))
+  , _topLevelTextures           :: (([TexturesElt]))
+  , _topLevelSamplers           :: (([SamplersElt]))
+  , _topLevelMeshes             :: [MeshesElt]
+  , _topLevelExtensionsUsed     :: (([Text]))
+  , _topLevelMaterials          :: (([MaterialsElt]))
+  , _topLevelAsset              :: Asset
+  , _topLevelBuffers            :: [BuffersElt]
   , _topLevelExtensionsRequired :: (([Text]))
-  , _topLevelSkins :: (([SkinsElt]))
-  , _topLevelAccessors :: [AccessorsElt]
-  , _topLevelCameras :: (([CamerasElt]))
-  , _topLevelScenes :: [ScenesElt]
-  , _topLevelAnimations :: (([AnimationsElt]))
-  , _topLevelNodes :: [NodesElt]
-  , _topLevelBufferViews :: [BufferViewsElt]
-  , _topLevelScene :: Maybe Int
-  } deriving (Show,Ord, Eq, Generic)
+  , _topLevelSkins              :: (([SkinsElt]))
+  , _topLevelAccessors          :: [AccessorsElt]
+  , _topLevelCameras            :: (([CamerasElt]))
+  , _topLevelScenes             :: [ScenesElt]
+  , _topLevelAnimations         :: (([AnimationsElt]))
+  , _topLevelNodes              :: [NodesElt]
+  , _topLevelBufferViews        :: [BufferViewsElt]
+  , _topLevelScene              :: Maybe Int
+  } deriving (Show,NFData,Ord, Eq, Generic)
 
 
 instance FromJSON TopLevel where
@@ -1398,7 +1391,7 @@ parse filename = do
     where
         fatal :: String -> IO a
         fatal msg = do
-                hPutStrLn stderr msg
+                putStrLn msg
                 exitFailure
 
 
@@ -1454,7 +1447,7 @@ data DecodingException
   = EmbeddedDecodingFailed Text
   | ResourceNotFound FilePath
   | UriTypeNotSupported Text
-  deriving (Show, Eq, Ord, Generic, Exception)
+  deriving (Show,NFData, Eq, Ord, Generic, Exception)
 
 
 resolveUri ::
@@ -1464,7 +1457,7 @@ resolveUri root t = do
   let mScheme = uri ^? uriScheme
       suppPaths = ["application", "image"]
       mpath = uri ^? uriPath
-      miD = 
+      miD =
         fmap (\(v1:v2) -> ((v1 ^. unRText) `elem` suppPaths, v2)) mpath
   iD <-
     case miD of

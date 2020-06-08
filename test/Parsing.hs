@@ -1,18 +1,20 @@
-{-# Language ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Parsing where
-import Control.Monad (forM)
-import Control.Lens ((^.), (^..), (^?), toListOf)
-import System.FilePath (joinPath)
-import System.Directory (canonicalizePath)
-import Data.Codec.Gltf
-       (Uri(..), buffersEltUri, imagesEltUri, parse, resolveUri,
-        topLevelBuffers, topLevelImages, TopLevel)
-import Test.Tasty
-import Path (parseAbsDir, parent, parseAbsFile)
-import Test.Tasty.HUnit
-import System.Directory.PathWalk (pathWalkAccumulate)
-import Data.List
+import           Control.DeepSeq           (rnf)
+import           Control.Lens              ((^..))
+import           Control.Monad             (forM)
+import           Data.Codec.Gltf           (TopLevel, Uri (..), buffersEltUri,
+                                            imagesEltUri, parse, resolveUri,
+                                            topLevelBuffers, topLevelImages)
+import           Data.List
+import           Path                      (parent, parseAbsFile)
+import           System.Directory          (canonicalizePath)
+import           System.Directory.PathWalk (pathWalkAccumulate)
+import           System.FilePath           (joinPath)
+import           Test.Tasty
+import           Test.Tasty.HUnit
 
+rootDir :: String
 rootDir = "../gltf-hs/glTF-Sample-Models/2.0/"
 
 getGfTLTests :: IO [FilePath]
@@ -34,7 +36,7 @@ parsingUnitTests (fs :: [FilePath]) =
   in testGroup "Parsing Unit tests" tests
   where
     go fp = do
-      _ <- parse fp
+      _ <- rnf <$> parse fp
       pure ()
 
 uriUnitTests :: [FilePath] -> TestTree
@@ -46,11 +48,11 @@ uriUnitTests fs =
     go fp (tl :: TopLevel) = do
       cfp <-canonicalizePath fp
       pthRoot <- parseAbsFile cfp
-      bffs <-
+      bffs <- rnf <$>
         mapM
           (resolveUri (parent pthRoot) . unUri)
           (tl ^.. topLevelBuffers . traverse . buffersEltUri)
-      imgs <-
+      imgs <- rnf <$>
         mapM
           (resolveUri (parent pthRoot) . unUri)
           (tl ^.. topLevelImages . traverse . imagesEltUri)
