@@ -3,9 +3,9 @@ module Parsing where
 import           Control.DeepSeq           (rnf)
 import           Control.Lens              ((^..))
 import           Control.Monad             (forM)
-import           Data.Codec.Gltf           (TopLevel, Uri (..), buffersEltUri,
+import           Data.Codec.Gltf           (ModelElt, Uri (..), buffersEltUri,
                                             imagesEltUri, parse, resolveUri,
-                                            topLevelBuffers, topLevelImages)
+                                            modelEltBuffers, modelEltImages)
 import           Data.List
 import           Path                      (parent, parseAbsFile)
 import           System.Directory          (canonicalizePath)
@@ -45,15 +45,15 @@ uriUnitTests fs =
       tests = (\(t, fp) -> t $ parse fp >>= go fp) <$> zip ts fs
   in testGroup "Uri resolution Unit tests" tests
   where
-    go fp (tl :: TopLevel) = do
+    go fp (tl :: ModelElt) = do
       cfp <-canonicalizePath fp
       pthRoot <- parseAbsFile cfp
       bffs <- rnf <$>
         mapM
           (resolveUri (parent pthRoot) . unUri)
-          (tl ^.. topLevelBuffers . traverse . buffersEltUri)
+          (tl ^.. modelEltBuffers . traverse . buffersEltUri)
       imgs <- rnf <$>
         mapM
           (resolveUri (parent pthRoot) . unUri)
-          (tl ^.. topLevelImages . traverse . imagesEltUri)
+          (tl ^.. modelEltImages . traverse . imagesEltUri)
       pure ()

@@ -31,6 +31,8 @@ import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import           Data.Text.Conversions      (Base64 (..), convertText)
 import           GHC.Generics
+import Data.Vector  (Vector)
+import qualified Data.Vector as V
 import           Path                       (Abs, Dir, File, Path, parseRelFile,
                                              toFilePath, (</>))
 import           System.Directory           (doesFileExist)
@@ -130,10 +132,10 @@ instance ToJSON TextureInfo where
 
 data KHRMaterialsPbrSpecularGlossiness = KHRMaterialsPbrSpecularGlossiness {
     _kHRMaterialsPbrSpecularGlossinessGlossinessFactor :: Maybe Double,
-    _kHRMaterialsPbrSpecularGlossinessSpecularFactor :: (Maybe([Double])), -- number[3]
-    _kHRMaterialsPbrSpecularGlossinessDiffuseFactor :: (Maybe ([Double])), -- number[4]
+    _kHRMaterialsPbrSpecularGlossinessSpecularFactor :: Maybe([Double]) , -- number[3]
+    _kHRMaterialsPbrSpecularGlossinessDiffuseFactor :: Maybe ([Double]) , -- number[4]
     _kHRMaterialsPbrSpecularGlossinessSpecularGlossinessTexture :: Maybe TextureInfo,
-    _kHRMaterialsPbrSpecularGlossinessTextureInfo :: (Maybe (TextureInfo))
+    _kHRMaterialsPbrSpecularGlossinessTextureInfo :: Maybe (TextureInfo)
   } deriving (Show,NFData,Ord,Eq,Generic)
 
 
@@ -171,9 +173,9 @@ instance ToJSON KHRMaterialsPbrSpecularGlossiness where
 
 
 data KHRTextureTransform = KHRTextureTransform {
-    _kHRTextureTransformRotation :: (Maybe Double),
-    _kHRTextureTransformOffset   :: (Maybe ([Double])), -- array[2]
-    _kHRTextureTransformScale    :: (Maybe ([Double])) -- array[2]
+    _kHRTextureTransformRotation :: Maybe Double,
+    _kHRTextureTransformOffset   :: Maybe [Double] , -- array[2]
+    _kHRTextureTransformScale    :: Maybe [Double]  -- array[2]
     -- FIXME: missing texCoord
   } deriving (Show,NFData,Ord,Eq,Generic)
 
@@ -594,7 +596,7 @@ data PbrMetallicRoughness = PbrMetallicRoughness
   { _pbrMetallicRoughnessMetallicFactor           :: Maybe Double
   , _pbrMetallicRoughnessMetallicRoughnessTexture :: Maybe TextureInfo
   , _pbrMetallicRoughnessBaseColorTexture         :: Maybe BaseColorTexture
-  , _pbrMetallicRoughnessBaseColorFactor          :: (Maybe ([Double])) -- ^ array[4]
+  , _pbrMetallicRoughnessBaseColorFactor          :: Maybe [Double]  -- ^ array[4]
   , _pbrMetallicRoughnessRoughnessFactor          :: Maybe Double
   } deriving (Show,NFData,Ord, Eq, Generic)
 
@@ -654,7 +656,7 @@ data MaterialsElt = MaterialsElt
   , _materialsEltExtensions           :: Maybe Extensions
   , _materialsEltDoubleSided          :: Maybe Bool
   , _materialsEltPbrMetallicRoughness :: Maybe PbrMetallicRoughness
-  , _materialsEltEmissiveFactor       :: (Maybe ([Double]))
+  , _materialsEltEmissiveFactor       :: Maybe [Double] 
   , _materialsEltAlphaCutoff          :: Maybe Double
   , _materialsEltNormalTexture        :: Maybe NormalTexture
   , _materialsEltName                 :: Maybe Text
@@ -972,7 +974,7 @@ data AccessorsElt = AccessorsElt {
     _accessorsEltSparse        :: Maybe Sparse,
     _accessorsEltName          :: Maybe Text,
     _accessorsEltComponentType :: ComponentType,
-    _accessorsEltMin           :: (Maybe ([Double])),
+    _accessorsEltMin           :: Maybe [Double] ,
     _accessorsEltType          :: Component
   } deriving (Show,NFData,Ord,Eq,Generic)
 
@@ -1184,13 +1186,13 @@ instance FromJSON AnimationsElt where
 
 
 data NodesElt = NodesElt {
-    _nodesEltRotation    :: (Maybe ([Double])),
-    _nodesEltScale       :: (Maybe ([Double])),
+    _nodesEltRotation    :: Maybe [Double] ,
+    _nodesEltScale       :: Maybe [Double] ,
     _nodesEltChildren    :: Maybe [Int],
-    _nodesEltMatrix      :: (Maybe ([Double])),
+    _nodesEltMatrix      :: Maybe [Double] ,
     _nodesEltSkin        :: Maybe Int,
     _nodesEltName        :: Maybe Text,
-    _nodesEltTranslation :: (Maybe ([Double])),
+    _nodesEltTranslation :: Maybe [Double] ,
     _nodesEltMesh        :: Maybe Int,
     _nodesEltCamera      :: Maybe Int
   } deriving (Show,NFData,Ord,Eq,Generic)
@@ -1277,109 +1279,109 @@ instance ToJSON BufferViewsElt where
        _bufferViewsEltTarget)
 
 
-data TopLevel = TopLevel
-  { _topLevelImages             :: (([ImagesElt]))
-  , _topLevelTextures           :: (([TexturesElt]))
-  , _topLevelSamplers           :: (([SamplersElt]))
-  , _topLevelMeshes             :: [MeshesElt]
-  , _topLevelExtensionsUsed     :: (([Text]))
-  , _topLevelMaterials          :: (([MaterialsElt]))
-  , _topLevelAsset              :: Asset
-  , _topLevelBuffers            :: [BuffersElt]
-  , _topLevelExtensionsRequired :: (([Text]))
-  , _topLevelSkins              :: (([SkinsElt]))
-  , _topLevelAccessors          :: [AccessorsElt]
-  , _topLevelCameras            :: (([CamerasElt]))
-  , _topLevelScenes             :: [ScenesElt]
-  , _topLevelAnimations         :: (([AnimationsElt]))
-  , _topLevelNodes              :: [NodesElt]
-  , _topLevelBufferViews        :: [BufferViewsElt]
-  , _topLevelScene              :: Maybe Int
+data ModelElt = ModelElt
+  { _modelEltImages             :: Vector ImagesElt
+  , _modelEltTextures           :: Vector TexturesElt
+  , _modelEltSamplers           :: Vector SamplersElt
+  , _modelEltMeshes             :: Vector MeshesElt
+  , _modelEltExtensionsUsed     :: Vector Text
+  , _modelEltMaterials          :: Vector MaterialsElt
+  , _modelEltAsset              :: Asset
+  , _modelEltBuffers            :: Vector BuffersElt
+  , _modelEltExtensionsRequired :: Vector Text 
+  , _modelEltSkins              :: Vector SkinsElt 
+  , _modelEltAccessors          :: Vector AccessorsElt
+  , _modelEltCameras            :: Vector CamerasElt 
+  , _modelEltScenes             :: Vector ScenesElt
+  , _modelEltAnimations         :: Vector AnimationsElt 
+  , _modelEltNodes              :: Vector NodesElt
+  , _modelEltBufferViews        :: Vector BufferViewsElt
+  , _modelEltScene              :: Maybe Int
   } deriving (Show,NFData,Ord, Eq, Generic)
 
 
-instance FromJSON TopLevel where
+instance FromJSON ModelElt where
   parseJSON (Object v) =
-    TopLevel <$> (concat <$> (v .:?? "images")) <*>
-    (concat <$> v .:?? "textures") <*>
-    (concat <$> v .:?? "samplers") <*>
+    ModelElt <$> (V.fromList . concat <$> (v .:?? "images")) <*>
+    (V.fromList . concat <$> v .:?? "textures") <*>
+    (V.fromList . concat <$> v .:?? "samplers") <*>
     v .: "meshes" <*>
-    (concat <$> v .:?? "extensionsUsed") <*>
-    (concat <$> v .:?? "materials") <*>
+    (V.fromList .  concat <$> v .:?? "extensionsUsed") <*>
+    (V.fromList . concat <$> v .:?? "materials") <*>
     v .: "asset" <*>
     v .: "buffers" <*>
-    (concat <$> v .:?? "extensionsRequired") <*>
-    (concat <$> v .:?? "skins") <*>
+    (V.fromList . concat <$> v .:?? "extensionsRequired") <*>
+    (V.fromList . concat <$> v .:?? "skins") <*>
     v .: "accessors" <*>
-    (concat <$> v .:?? "cameras") <*>
+    (V.fromList . concat <$> v .:?? "cameras") <*>
     v .: "scenes" <*>
-    (concat <$> v .:?? "animations") <*>
+    (V.fromList . concat <$> v .:?? "animations") <*>
     v .: "nodes" <*>
     v .: "bufferViews" <*>
     v .:?? "scene"
   parseJSON _ = mzero
 
 
--- instance ToJSON TopLevel where
---   toJSON (TopLevel {..}) =
+-- instance ToJSON ModelElt where
+--   toJSON (ModelElt {..}) =
 --     object
---       [ "images" .= _topLevelImages
---       , "textures" .= _topLevelTextures
---       , "samplers" .= _topLevelSamplers
---       , "meshes" .= _topLevelMeshes
---       , "extensionsUsed" .= _topLevelExtensionsUsed
---       , "materials" .= _topLevelMaterials
---       , "asset" .= _topLevelAsset
---       , "buffers" .= _topLevelBuffers
---       , "extensionsRequired" .= _topLevelExtensionsRequired
---       , "skins" .= _topLevelSkins
---       , "accessors" .= _topLevelAccessors
---       , "cameras" .= _topLevelCameras
---       , "scenes" .= _topLevelScenes
---       , "animations" .= _topLevelAnimations
---       , "nodes" .= _topLevelNodes
---       , "bufferViews" .= _topLevelBufferViews
---       , "scene" .= _topLevelScene
+--       [ "images" .= _modelEltImages
+--       , "textures" .= _modelEltTextures
+--       , "samplers" .= _modelEltSamplers
+--       , "meshes" .= _modelEltMeshes
+--       , "extensionsUsed" .= _modelEltExtensionsUsed
+--       , "materials" .= _modelEltMaterials
+--       , "asset" .= _modelEltAsset
+--       , "buffers" .= _modelEltBuffers
+--       , "extensionsRequired" .= _modelEltExtensionsRequired
+--       , "skins" .= _modelEltSkins
+--       , "accessors" .= _modelEltAccessors
+--       , "cameras" .= _modelEltCameras
+--       , "scenes" .= _modelEltScenes
+--       , "animations" .= _modelEltAnimations
+--       , "nodes" .= _modelEltNodes
+--       , "bufferViews" .= _modelEltBufferViews
+--       , "scene" .= _modelEltScene
 --       ]
-  -- toEncoding (TopLevel {..}) =
+  -- toEncoding (ModelElt {..}) =
   --   pairs
-  --     ("images" .= _topLevelImages <> "textures" .= _topLevelTextures <>
+  --     ("images" .= _modelEltImages <> "textures" .= _modelEltTextures <>
   --      "samplers" .=
-  --      _topLevelSamplers <>
+  --      _modelEltSamplers <>
   --      "meshes" .=
-  --      _topLevelMeshes <>
+  --      _modelEltMeshes <>
   --      "extensionsUsed" .=
-  --      _topLevelExtensionsUsed <>
+  --      _modelEltExtensionsUsed <>
   --      "materials" .=
-  --      _topLevelMaterials <>
+  --      _modelEltMaterials <>
   --      "asset" .=
-  --      _topLevelAsset <>
+  --      _modelEltAsset <>
   --      "buffers" .=
-  --      _topLevelBuffers <>
+  --      _modelEltBuffers <>
   --      "extensionsRequired" .=
-  --      _topLevelExtensionsRequired <>
+  --      _modelEltExtensionsRequired <>
   --      "skins" .=
-  --      _topLevelSkins <>
+  --      _modelEltSkins <>
   --      "accessors" .=
-  --      _topLevelAccessors <>
+  --      _modelEltAccessors <>
   --      "cameras" .=
-  --      _topLevelCameras <>
+  --      _modelEltCameras <>
   --      "scenes" .=
-  --      _topLevelScenes <>
+  --      _modelEltScenes <>
   --      "animations" .=
-  --      _topLevelAnimations <>
+  --      _modelEltAnimations <>
   --      "nodes" .=
-  --      _topLevelNodes <>
+  --      _modelEltNodes <>
   --      "bufferViews" .=
-  --      _topLevelBufferViews <>
+  --      _modelEltBufferViews <>
   --      "scene" .=
-  --      _topLevelScene
+  --      _modelEltScene
       -- )
 
 
 
 
-parse :: FilePath -> IO TopLevel
+parse :: FilePath -> IO ModelElt
 parse filename = do
         input <- BSL.readFile filename
         case decode input of
@@ -1387,7 +1389,7 @@ parse filename = do
                         Nothing -> "Invalid JSON file: " ++ filename
                         Just v ->
                                 "Mismatched JSON value from file: " ++ filename
-                Just r -> return (r :: TopLevel)
+                Just r -> return (r :: ModelElt)
     where
         fatal :: String -> IO a
         fatal msg = do
@@ -1431,7 +1433,7 @@ mconcat <$> traverse
   , ''AnimationsElt
   , ''NodesElt
   , ''BufferViewsElt
-  , ''TopLevel
+  , ''ModelElt
   ]
 
 mconcat <$> traverse

@@ -44,6 +44,7 @@ library
                        , exceptions
                        , transformers >= 0.5
                        , semigroups >= 0.18
+                       , vector
                        
   
                      
