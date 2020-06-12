@@ -480,7 +480,7 @@ data PrimitivesElt = PrimitivesElt {
     _primitivesEltMaterial   :: Maybe Int,
     _primitivesEltIndices    :: Maybe Int64,
     _primitivesEltAttributes :: Attributes,
-    _primitivesEltTargets    :: Maybe [TargetsElt]
+    _primitivesEltTargets    :: Maybe (Vector TargetsElt)
   } deriving (Show,NFData,Ord,Eq,Generic)
 
 
@@ -490,7 +490,7 @@ instance FromJSON PrimitivesElt where
     v .:?? "material" <*>
     v .:?? "_indices" <*>
     v .: "attributes" <*>
-    v .:?? "targets"
+    (fmap V.fromList <$> v .:?? "targets")
   parseJSON _ = mzero
 
 
@@ -519,13 +519,13 @@ instance FromJSON PrimitivesElt where
 
 data MeshesElt = MeshesElt {
     _meshesEltName       :: Maybe Text,
-    _meshesEltPrimitives :: [PrimitivesElt],
-    _meshesEltWeights    :: Maybe [Double]
+    _meshesEltPrimitives :: Vector PrimitivesElt,
+    _meshesEltWeights    :: Maybe (Vector Double)
   } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON MeshesElt where
-  parseJSON (Object v) = MeshesElt <$> v .:?? "name" <*> v .:   "primitives" <*> v .:?? "weights"
+  parseJSON (Object v) = MeshesElt <$> v .:?? "name" <*> (V.fromList <$> v .:   "primitives") <*> (fmap V.fromList <$> v .:?? "weights")
   parseJSON _          = mzero
 
 
@@ -795,7 +795,7 @@ instance ToJSON BuffersElt where
 
 
 data SkinsElt = SkinsElt {
-    _skinsEltJoints              :: [Double],
+    _skinsEltJoints              :: Vector Double,
     _skinsEltSkeleton            :: Double,
     _skinsEltName                :: Text,
     _skinsEltInverseBindMatrices :: Double
@@ -804,7 +804,7 @@ data SkinsElt = SkinsElt {
 
 instance FromJSON SkinsElt where
   parseJSON (Object v) =
-    SkinsElt <$> v .: "joints" <*> v .: "skeleton" <*> v .: "name" <*>
+    SkinsElt <$> (V.fromList <$> v .: "joints") <*> v .: "skeleton" <*> v .: "name" <*>
     v .: "inverseBindMatrices"
   parseJSON _ = mzero
 
@@ -1116,12 +1116,12 @@ instance ToJSON CamerasElt where
 
 data ScenesElt = ScenesElt {
     _scenesEltName  :: Maybe Text,
-    _scenesEltNodes :: [Double]
+    _scenesEltNodes :: Vector Double
   } deriving (Show,NFData,Ord,Eq,Generic)
 
 
 instance FromJSON ScenesElt where
-  parseJSON (Object v) = ScenesElt <$> v .:?? "name" <*> v .:   "nodes"
+  parseJSON (Object v) = ScenesElt <$> v .:?? "name" <*> (V.fromList <$> v .:   "nodes")
   parseJSON _          = mzero
 
 
@@ -1168,15 +1168,15 @@ instance ToJSON ChannelsElt where
 
 
 data AnimationsElt = AnimationsElt
-  { _animationsEltSamplers :: [SamplersElt]
-  , _animationsEltChannels :: [ChannelsElt]
+  { _animationsEltSamplers :: Vector SamplersElt
+  , _animationsEltChannels :: Vector ChannelsElt
   , _animationsEltName     :: Maybe Text
   } deriving (Show,NFData,Ord, Eq, Generic)
 
 
 instance FromJSON AnimationsElt where
   parseJSON (Object v) =
-    AnimationsElt <$> v .: "samplers" <*> v .: "channels" <*> v .:?? "name"
+    AnimationsElt <$> (V.fromList <$> v .: "samplers") <*> (V.fromList <$> v .: "channels") <*> v .:?? "name"
   parseJSON _ = mzero
 
 
